@@ -370,7 +370,7 @@ async def stripe_webhook(request: Request):
         payload = await request.body()
         
         # Verify webhook
-        event = await stripe_client.verify_webhook(payload, signature)
+        event = stripe_client.verify_webhook(payload, signature)
         
         if event['type'] == 'checkout.session.completed':
             session = event['data']['object']
