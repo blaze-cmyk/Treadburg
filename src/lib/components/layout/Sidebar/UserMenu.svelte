@@ -32,6 +32,9 @@
 	const dispatch = createEventDispatcher();
 
 	let usage = null;
+	let userProfile = null;
+	let loadingProfile = false;
+	
 	const getUsageInfo = async () => {
 		const res = await getUsage(localStorage.token).catch((error) => {
 			console.error('Error fetching usage info:', error);
@@ -43,9 +46,30 @@
 			usage = null;
 		}
 	};
+	
+	const getUserProfile = async () => {
+		loadingProfile = true;
+		try {
+			const response = await fetch('/api/user-management/profile', {
+				headers: {
+					'Authorization': `Bearer ${localStorage.token}`
+				}
+			});
+			
+			if (response.ok) {
+				const data = await response.json();
+				userProfile = data.user;
+			}
+		} catch (error) {
+			console.error('Error fetching user profile:', error);
+		} finally {
+			loadingProfile = false;
+		}
+	};
 
 	$: if (show) {
 		getUsageInfo();
+		getUserProfile();
 	}
 </script>
 
@@ -70,6 +94,61 @@
 			align="start"
 			transition={(e) => fade(e, { duration: 100 })}
 		>
+			<!-- User Profile Section -->
+			{#if userProfile}
+				<div class="px-3 py-3 mb-1 border-b border-gray-100 dark:border-gray-800">
+					<div class="flex items-center gap-3 mb-2">
+						{#if userProfile.avatar_url}
+							<img src={userProfile.avatar_url} alt="Avatar" class="w-10 h-10 rounded-full" />
+						{:else}
+							<div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+								{userProfile.email?.[0]?.toUpperCase() || 'U'}
+							</div>
+						{/if}
+						<div class="flex-1 min-w-0">
+							<div class="font-medium truncate">{userProfile.full_name || userProfile.username || 'User'}</div>
+							<div class="text-xs text-gray-500 dark:text-gray-400 truncate">{userProfile.email}</div>
+						</div>
+					</div>
+					
+					<!-- Credits Display -->
+					<div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+						<div class="flex items-center gap-2">
+							<svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+								<path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"/>
+							</svg>
+							<span class="text-sm font-medium">{userProfile.credits || 0} Credits</span>
+						</div>
+						<button
+							on:click={() => {
+								show = false;
+								goto('/credits');
+							}}
+							class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+						>
+							Buy More
+						</button>
+					</div>
+					
+					<!-- Subscription Badge -->
+					{#if userProfile.subscription_tier && userProfile.subscription_tier !== 'free'}
+						<div class="mt-2 flex items-center gap-2">
+							<span class="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs rounded-full font-medium">
+								{userProfile.subscription_tier.toUpperCase()}
+							</span>
+							{#if userProfile.subscription_status === 'active'}
+								<span class="text-xs text-green-600 dark:text-green-400">● Active</span>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{:else if loadingProfile}
+				<div class="px-3 py-3 mb-1 text-center text-sm text-gray-500">
+					Loading profile...
+				</div>
+			{/if}
+			
 			<DropdownMenu.Item
 				class="flex rounded-xl py-1.5 px-3 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
 				on:click={async () => {
