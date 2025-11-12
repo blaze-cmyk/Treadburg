@@ -32,10 +32,19 @@
 				return;
 			}
 			
-			const data = await getUserCredits(token);
-			credits = data.credits;
-			totalPurchased = data.total_purchased;
-			totalUsed = data.total_used;
+			try {
+				const data = await getUserCredits(token);
+				credits = data.credits;
+				totalPurchased = data.total_purchased;
+				totalUsed = data.total_used;
+			} catch (apiError) {
+				console.warn('API not available, using fallback:', apiError);
+				// Use fallback data
+				credits = 0;
+				totalPurchased = 0;
+				totalUsed = 0;
+				error = 'Credits system will be available after database sync. You can still purchase credits below.';
+			}
 		} catch (e: any) {
 			error = e.message;
 			console.error('Error loading credits:', e);

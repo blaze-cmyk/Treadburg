@@ -30,16 +30,58 @@
 				return;
 			}
 			
-			const data = await getUserProfile(token);
-			userProfile = data.user;
-			userStats = data.stats;
+			// Try to fetch from new API
+			try {
+				const data = await getUserProfile(token);
+				userProfile = data.user;
+				userStats = data.stats;
+			} catch (apiError: any) {
+				console.warn('API not available, using fallback data:', apiError);
+				
+				// Fallback to existing user store
+				if ($user) {
+					userProfile = {
+						id: $user.id,
+						email: $user.email,
+						username: $user.name,
+						full_name: $user.name,
+						avatar_url: $user.profile_image_url,
+						bio: '',
+						credits: 0,
+						total_credits_purchased: 0,
+						total_credits_used: 0,
+						subscription_tier: 'free',
+						subscription_status: 'inactive',
+						is_verified: true,
+						created_at: new Date().toISOString(),
+						last_login_at: new Date().toISOString()
+					};
+					
+					userStats = {
+						total_credits_purchased: 0,
+						total_credits_used: 0,
+						current_credits: 0,
+						total_payments: 0,
+						total_spent: 0,
+						api_calls_count: 0,
+						login_count: 0,
+						member_since: new Date().toISOString()
+					};
+					
+					error = 'Using local data. Full features will be available after database sync.';
+				} else {
+					throw new Error('No user data available');
+				}
+			}
 			
 			// Populate edit form
-			editForm = {
-				username: userProfile.username || '',
-				full_name: userProfile.full_name || '',
-				bio: userProfile.bio || ''
-			};
+			if (userProfile) {
+				editForm = {
+					username: userProfile.username || '',
+					full_name: userProfile.full_name || '',
+					bio: userProfile.bio || ''
+				};
+			}
 		} catch (e: any) {
 			error = e.message;
 			console.error('Error loading profile:', e);
@@ -84,14 +126,20 @@
 <div class="max-w-5xl mx-auto p-6">
 	<h1 class="text-3xl font-bold mb-6">My Profile</h1>
 	
+	{#if error && error.includes('local data')}
+		<div class="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
+			<strong>Note:</strong> {error}
+		</div>
+	{:else if error}
+		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+			{error}
+		</div>
+	{/if}
+	
 	{#if loading}
 		<div class="text-center py-12">
 			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
 			<p class="mt-4 text-gray-600 dark:text-gray-400">Loading profile...</p>
-		</div>
-	{:else if error}
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-			{error}
 		</div>
 	{:else if userProfile}
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
