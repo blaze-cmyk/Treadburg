@@ -127,7 +127,18 @@
 </svelte:head>
 
 <div class="max-w-6xl mx-auto p-6">
-	<h1 class="text-3xl font-bold mb-6">Credits</h1>
+	<div class="flex items-center gap-4 mb-6">
+		<button
+			on:click={() => window.history.back()}
+			class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+			title="Go back"
+		>
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+			</svg>
+		</button>
+		<h1 class="text-3xl font-bold">Credits</h1>
+	</div>
 	
 	{#if error}
 		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
