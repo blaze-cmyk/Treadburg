@@ -17,7 +17,7 @@ from urllib.parse import urlencode, parse_qs, urlparse
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from typing import Optional
+from typing import Optional, List, Dict
 from aiocache import cached
 import aiohttp
 import anyio.to_thread
@@ -48,6 +48,9 @@ from starlette_compress import CompressMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+
+# Perplexity Integration
+from open_webui.utils.perplexity_integration import perplexity_service
 from starlette.responses import Response, StreamingResponse
 from starlette.datastructures import Headers
 
@@ -102,7 +105,18 @@ from open_webui.routers.tradeberg import (
     pick_model as tb_pick_model,
     infer_capabilities as tb_infer_capabilities,
 )
+from open_webui.utils.intent_detector import (
+    requires_chart_analysis,
+    extract_symbol_from_message,
+    extract_timeframe_from_message,
+    should_remove_auto_attached_image,
+)
+from open_webui.utils.crypto_data_api import get_binance_data
+from open_webui.utils.chart_analyzer import analyze_chart_data
+from open_webui.utils.chart_capture import capture_chart_silently
+from open_webui.utils.vision_analyzer import analyze_chart_with_vision
 from open_webui.routers.markets import router as markets_router
+from open_webui.routers.nansen import router as nansen_router
 
 from open_webui.routers.retrieval import (
     get_embedding_function,
@@ -632,97 +646,230 @@ app.state.oauth_manager = oauth_manager
 # For Integrations
 oauth_client_manager = OAuthClientManager(app)
 app.state.oauth_client_manager = oauth_client_manager
-# TradeBerg virtual model router
-# Enforced handler (registered before any router includes) to guarantee persona
-@app.post("/api/tradeberg/chat/completions")
-@app.post("/api/tradeberg/enforced/chat/completions")
+# TradeBerg Direct Perplexity Handler - Clean Implementation
 async def tradeberg_chat_enforced(request: Request):
+    """Unified TradeBerg chat handler - Routes between OpenAI Vision and Perplexity intelligently"""
+    request_id = str(uuid4())[:8]
+    log.info(f"🔵 [Request {request_id}] TradeBerg Unified Chat Request")
+    
     try:
         body = await request.json()
-    except Exception:
-        body = {}
-
-    client = tb_get_openai_client()
-    models = tb_list_openai_models(client)
-    caps = tb_infer_capabilities(body)
-    model = tb_pick_model(models, has_image=caps["has_image_input"], wants_image_gen=caps["wants_image_gen"], deep=caps["deep"])
-
-    body["model"] = model
-    stream = bool(body.get("stream", False))
-    # Remove stream from body when passing via **body to avoid duplicate kwarg when we send it explicitly
-    body.pop("stream", None)
-
-    safe_param_keys = {"temperature","top_p","max_tokens","stop","presence_penalty","frequency_penalty","response_format","seed","tools","tool_choice","logit_bias","metadata","reasoning"}
-    params_obj = body.get("params")
-    if isinstance(params_obj, dict):
-        for k, v in list(params_obj.items()):
-            if k in safe_param_keys:
-                body[k] = v
-        body.pop("params", None)
-
-    for k in ["files","filter_ids","tool_ids","tool_servers","features","variables","model_item","session_id","chat_id","id","background_tasks","stream_options"]:
-        body.pop(k, None)
-
-    try:
-        msgs = body.get("messages", [])
-        filtered = []
-        for m in msgs:
-            if isinstance(m, dict) and m.get("role") != "system":
-                filtered.append(m)
-        body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}] + filtered
-    except Exception:
-        body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}]
-
-    try:
-        if stream:
-            # Stream NDJSON chunks
-            completion = client.chat.completions.create(**body, stream=True)
-
-            async def gen():
-                first = True
-                for chunk in completion:
-                    try:
-                        data = chunk.to_dict()
-                        # Prepend persona marker to the very first content token
-                        if first:
-                            first = False
-                            try:
-                                delta = data.get("choices", [{}])[0].get("delta", {})
-                                if isinstance(delta, dict):
-                                    content = delta.get("content")
-                                    if isinstance(content, str):
-                                        delta["content"] = f"TRADEBERG: {content}"
-                                    elif content is None:
-                                        delta["content"] = "TRADEBERG: "
-                            except Exception:
-                                pass
-                        yield json.dumps(data) + "\n"
-                    except Exception:
-                        # Best-effort streaming; skip bad chunks
-                        continue
-
-            return StreamingResponse(gen(), media_type="application/x-ndjson", headers={"X-TradeBerg": "1"})
-        else:
-            completion = client.chat.completions.create(**body)
-            payload = completion.to_dict()
+        messages = body.get("messages", [])
+        
+        # Extract user message and image data
+        user_message = ""
+        image_data = None
+        conversation_history = []
+        
+        # Build conversation history
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            
+            if role == "system":
+                continue  # Skip system messages
+            
+            if isinstance(content, str):
+                if role == "user":
+                    user_message = content  # Last user message
+                conversation_history.append({
+                    "role": role,
+                    "content": content
+                })
+            elif isinstance(content, list):
+                # Handle multipart content (text + image)
+                text_content = ""
+                for part in content:
+                    if part.get("type") == "text":
+                        text_content = part.get("text", "")
+                        user_message = text_content
+                    elif part.get("type") == "image_url":
+                        image_url = part.get("image_url", {}).get("url", "")
+                        if image_url.startswith("data:image") and "," in image_url:
+                            image_data = image_url.split(",")[1]
+                
+                if text_content:
+                    conversation_history.append({
+                        "role": role,
+                        "content": text_content
+                    })
+        
+        if not user_message.strip():
+            return {"error": "No message found"}
+        
+        log.info(f"💬 Processing: '{user_message[:50]}...' | Image: {bool(image_data)}")
+        
+        # 🔥 INJECT REAL-TIME BINANCE DATA
+        from open_webui.utils.realtime_data_injector import extract_symbols
+        from open_webui.utils.realtime_data_aggregator import get_realtime_market_data
+        
+        symbols = extract_symbols(user_message)
+        enhanced_message = user_message
+        binance_data_injected = False
+        binance_market_data = None
+        
+        if symbols and not image_data:  # Only inject for text queries (not image analysis)
             try:
-                msg = (payload.get("choices", [{}])[0] or {}).get("message", {})
-                if isinstance(msg, dict) and isinstance(msg.get("content"), str):
-                    content = msg["content"]
-                    if not content.startswith("TRADEBERG:"):
-                        msg["content"] = f"TRADEBERG: {content}"
-            except Exception:
-                pass
-            return JSONResponse(content=payload, headers={"X-TradeBerg":"1"})
+                primary_symbol = symbols[0]
+                log.info(f"📊 Detected symbol: {primary_symbol} - Fetching live Binance data...")
+                
+                # Fetch real-time data from Binance
+                market_data = get_realtime_market_data(primary_symbol)
+                
+                if market_data:
+                    # Store market data for card generation
+                    binance_market_data = market_data
+                    
+                    # Create concise context for AI (avoid message format errors)
+                    binance_context = f"""
+
+[LIVE BINANCE DATA - {market_data['timestamp']}]
+{primary_symbol}: ${market_data['price']['current']:,.2f} ({market_data['price']['change_24h']:+.2f}% 24h)
+High: ${market_data['price']['high_24h']:,.2f} | Low: ${market_data['price']['low_24h']:,.2f}
+Volume: ${market_data['price']['quote_volume_24h']/1e9:.2f}B | Buy Pressure: {market_data['volume_metrics']['buy_pressure']:.1f}%
+
+Use this exact price data from Binance API. Do not search the web for prices."""
+                    
+                    enhanced_message = user_message + binance_context
+                    binance_data_injected = True
+                    log.info(f"✅ Binance data injected for {primary_symbol}: ${market_data['price']['current']:,.2f}")
+                    
+            except Exception as e:
+                log.error(f"❌ Failed to fetch Binance data: {e}")
+                # Continue without Binance data
+        
+        # Use Unified Perplexity Service
+        from open_webui.utils.unified_perplexity_service import get_unified_service
+        
+        unified_service = get_unified_service()
+        result = await unified_service.process_unified_query(
+            user_message=enhanced_message,  # Use enhanced message with Binance data
+            image_data=image_data,
+            conversation_history=conversation_history[:-1] if conversation_history else None,  # Exclude last message (current)
+            session_id=f"chat_{request_id}"
+        )
+        
+        if result.get("success"):
+            response_text = result.get("response", "")
+            
+            # 🎨 PREPEND BINANCE DATA CARD (shown instantly with animation)
+            if binance_data_injected and binance_market_data:
+                try:
+                    # Use the already-fetched market data
+                    market_data = binance_market_data
+                    
+                    # Create D3.js data marker for frontend to render interactive charts
+                    import json
+                    binance_card = f"""
+```binance-d3-data
+{json.dumps(market_data, indent=2)}
+```
+
+---
+
+"""
+                    # Prepend Binance card to response
+                    response_text = binance_card + response_text
+                    
+                except Exception as e:
+                    log.error(f"Failed to create Binance card: {e}")
+            
+            # Format response with citations if available
+            citations = result.get("citations", [])
+            related_questions = result.get("related_questions", [])
+            service_used = result.get("service_used", "unknown")
+            
+            # Clean and format response
+            if citations and service_used == "perplexity_api":
+                response_text += "\n\n---\n\n### 📚 Sources\n\n"
+                for i, citation in enumerate(citations[:5], 1):  # Top 5 citations
+                    # Clean citation URL
+                    citation_url = citation if isinstance(citation, str) else str(citation)
+                    response_text += f"{i}. [{citation_url}]({citation_url})\n"
+            
+            if related_questions and service_used == "perplexity_api":
+                response_text += "\n### 🔍 You Might Also Ask\n\n"
+                for question in related_questions[:3]:  # Top 3 related questions
+                    response_text += f"- {question}\n"
+            
+            # Add Binance data indicator if data was injected
+            if binance_data_injected:
+                response_text += "\n\n---\n\n*🔴 **Live Data**: Prices from Binance API (Real-time)*"
+            
+            # Clean response
+            response_text = response_text.strip()
+            if not response_text:
+                response_text = "I apologize, but I couldn't generate a response."
+            
+            # Create OpenAI-compatible response
+            response_data = {
+                "id": f"chatcmpl-{str(uuid4()).replace('-', '')[:29]}",
+                "object": "chat.completion", 
+                "created": int(time.time()),
+                "model": result.get("model", "gpt-4o"),
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": response_text
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": result.get("tokens_used", 0) // 2,
+                    "completion_tokens": result.get("tokens_used", 0) // 2,
+                    "total_tokens": result.get("tokens_used", 150)
+                }
+            }
+            
+            log.info(f"✅ [Request {request_id}] Response ready via {service_used}: {len(response_text)} chars")
+            
+            return response_data
+            
+        else:
+            error_msg = result.get("error", "Processing failed")
+            log.error(f"❌ [Request {request_id}] Error: {error_msg}")
+            
+            # Check if it's a rate limit error
+            if "429" in str(error_msg) or "rate limit" in str(error_msg).lower():
+                return {
+                    "error": {
+                        "message": "⚠️ API rate limit reached. Please wait a moment and try again.",
+                        "type": "rate_limit_error",
+                        "code": 429
+                    }
+                }
+            
+            return {"error": error_msg}
+            
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+        log.exception(f"❌ [Request {request_id}] Exception: {str(e)}")
+        
+        # Check if it's a rate limit exception
+        error_str = str(e)
+        if "429" in error_str or "rate limit" in error_str.lower():
+            return {
+                "error": {
+                    "message": "⚠️ API rate limit reached. Please wait a moment and try again.",
+                    "type": "rate_limit_error",
+                    "code": 429
+                }
+            }
+        
+        return {"error": "Internal server error"}
+
 
 app.include_router(markets_router)
+app.include_router(nansen_router, prefix="/api")
+app.include_router(tradeberg_router, prefix="/api", tags=["tradeberg"])
 
-# Ensure route is registered explicitly (guard against router order/overrides)
+# Financial Analysis Router
+from open_webui.routers.financial_analysis import router as financial_router
+app.include_router(financial_router, tags=["financial"])
+
+# Register TradeBerg chat completion routes (single registration per path to avoid duplicates)
 app.add_api_route("/api/tradeberg/enforced/chat/completions", tradeberg_chat_enforced, methods=["POST"])
-app.add_api_route("/api/tradeberg/chat/completions/enforced", tradeberg_chat_enforced, methods=["POST"])
-app.add_api_route("/api/tradeberg/chat/completions", tradeberg_chat_enforced, methods=["POST"])  # override
+app.add_api_route("/api/tradeberg/chat/completions", tradeberg_chat_enforced, methods=["POST"])
 
 app.state.instance_id = None
 app.state.config = AppConfig(
@@ -1352,122 +1499,124 @@ async def tradeberg_router_enforcer(request: Request, call_next):
     return await call_next(request)
 
 
-@app.middleware("http")
-async def tradeberg_short_circuit(request: Request, call_next):
-    """Intercept TradeBerg chat completions and enforce persona before router.
+# DISABLED: This middleware was intercepting Perplexity API calls and using OpenAI instead
+# @app.middleware("http")
+# async def tradeberg_short_circuit(request: Request, call_next):
+#     """Intercept TradeBerg chat completions and enforce persona before router.
+# 
+#     This guarantees the response format even if some other router shadowed the path.
+#     """
+#     p = request.url.path
+#     if request.method == "POST" and p in (
+#         "/api/tradeberg/chat/completions",
+#         "/api/tradeberg/enforced/chat/completions",
+#     ):
+#         try:
+#             body = await request.json()
+#         except Exception:
+#             body = {}
+# 
+#         # If client requested streaming, bypass this middleware and let the route handle SSE
+#         try:
+#             if bool(body.get("stream", False)):
+#                 return await call_next(request)
+#         except Exception:
+#             pass
+# 
+#         client = tb_get_openai_client()
+#         models = tb_list_openai_models(client)
+#         caps = tb_infer_capabilities(body)
+#         model = tb_pick_model(models, has_image=caps["has_image_input"], wants_image_gen=caps["wants_image_gen"], deep=caps["deep"])
+# 
+#         body["model"] = model
+#         body.pop("stream", None)
+# 
+#         safe_param_keys = {"temperature","top_p","max_tokens","stop","presence_penalty","frequency_penalty","response_format","seed","tools","tool_choice","logit_bias","metadata","reasoning"}
+#         params_obj = body.get("params")
+#         if isinstance(params_obj, dict):
+#             for k, v in list(params_obj.items()):
+#                 if k in safe_param_keys:
+#                     body[k] = v
+#             body.pop("params", None)
+# 
+#         for k in ["files","filter_ids","tool_ids","tool_servers","features","variables","model_item","session_id","chat_id","id","background_tasks","stream_options"]:
+#             body.pop(k, None)
+# 
+#         try:
+#             msgs = body.get("messages", [])
+#             filtered = []
+#             for m in msgs:
+#                 if isinstance(m, dict) and m.get("role") != "system":
+#                     filtered.append(m)
+#             body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}] + filtered
+#         except Exception:
+#             body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}]
+# 
+#         try:
+#             completion = client.chat.completions.create(**body)
+#             payload = completion.to_dict()
+#             try:
+#                 msg = (payload.get("choices", [{}])[0] or {}).get("message", {})
+#                 if isinstance(msg, dict) and isinstance(msg.get("content"), str):
+#                     content = msg["content"]
+#                     if not content.startswith("TRADEBERG:"):
+#                         msg["content"] = f"TRADEBERG: {content}"
+#             except Exception:
+#                 pass
+#             return JSONResponse(content=payload, headers={"X-TradeBerg":"1"})
+#         except Exception as e:
+#             return JSONResponse(status_code=400, content={"error": str(e)})
+# 
+#     return await call_next(request)
 
-    This guarantees the response format even if some other router shadowed the path.
-    """
-    p = request.url.path
-    if request.method == "POST" and p in (
-        "/api/tradeberg/chat/completions",
-        "/api/tradeberg/enforced/chat/completions",
-    ):
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
-
-        # If client requested streaming, bypass this middleware and let the route handle SSE
-        try:
-            if bool(body.get("stream", False)):
-                return await call_next(request)
-        except Exception:
-            pass
-
-        client = tb_get_openai_client()
-        models = tb_list_openai_models(client)
-        caps = tb_infer_capabilities(body)
-        model = tb_pick_model(models, has_image=caps["has_image_input"], wants_image_gen=caps["wants_image_gen"], deep=caps["deep"])
-
-        body["model"] = model
-        body.pop("stream", None)
-
-        safe_param_keys = {"temperature","top_p","max_tokens","stop","presence_penalty","frequency_penalty","response_format","seed","tools","tool_choice","logit_bias","metadata","reasoning"}
-        params_obj = body.get("params")
-        if isinstance(params_obj, dict):
-            for k, v in list(params_obj.items()):
-                if k in safe_param_keys:
-                    body[k] = v
-            body.pop("params", None)
-
-        for k in ["files","filter_ids","tool_ids","tool_servers","features","variables","model_item","session_id","chat_id","id","background_tasks","stream_options"]:
-            body.pop(k, None)
-
-        try:
-            msgs = body.get("messages", [])
-            filtered = []
-            for m in msgs:
-                if isinstance(m, dict) and m.get("role") != "system":
-                    filtered.append(m)
-            body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}] + filtered
-        except Exception:
-            body["messages"] = [{"role":"system","content": TB_GLOBAL_SYSTEM_PROMPT}]
-
-        try:
-            completion = client.chat.completions.create(**body)
-            payload = completion.to_dict()
-            try:
-                msg = (payload.get("choices", [{}])[0] or {}).get("message", {})
-                if isinstance(msg, dict) and isinstance(msg.get("content"), str):
-                    content = msg["content"]
-                    if not content.startswith("TRADEBERG:"):
-                        msg["content"] = f"TRADEBERG: {content}"
-            except Exception:
-                pass
-            return JSONResponse(content=payload, headers={"X-TradeBerg":"1"})
-        except Exception as e:
-            return JSONResponse(status_code=400, content={"error": str(e)})
-
-    return await call_next(request)
-
-@app.middleware("http")
-async def tradeberg_response_normalizer(request: Request, call_next):
-    """Normalize responses for chat completions to guarantee TRADEBERG persona.
-
-    This wraps successful JSON responses for both /api/tradeberg/chat/completions and
-    the legacy /api/chat/completions (in case something slips through) and ensures:
-      - Header X-TradeBerg: 1
-      - The first assistant message is prefixed with "TRADEBERG: "
-    """
-    path = request.url.path
-    response = await call_next(request)
-    try:
-        # Do NOT touch streaming responses
-        ct = (response.headers.get("content-type") or "").lower()
-        if "application/x-ndjson" in ct:
-            return response
-
-        if request.method == "POST" and path.endswith("/chat/completions") and response.status_code == 200:
-            # Read the streaming body into bytes
-            body_bytes = b""
-            async for chunk in response.body_iterator:
-                body_bytes += chunk
-
-            # Attempt JSON parse; if fails, return original
-            import json
-            payload = json.loads(body_bytes.decode("utf-8"))
-
-            # Prefix content if present
-            try:
-                msg = (payload.get("choices", [{}])[0] or {}).get("message", {})
-                if isinstance(msg, dict) and isinstance(msg.get("content"), str):
-                    content = msg["content"]
-                    if not content.startswith("TRADEBERG:"):
-                        msg["content"] = f"TRADEBERG: {content}"
-            except Exception:
-                pass
-
-            # Return a new JSONResponse with the normalized payload and header
-            from fastapi.responses import JSONResponse
-            new_resp = JSONResponse(content=payload)
-            new_resp.headers.update({"X-TradeBerg": "1"})
-            return new_resp
-    except Exception:
-        # On any issue, fall back to original response
-        return response
-
-    return response
+# DISABLED: This middleware was causing connection issues and adding unwanted prefix
+# @app.middleware("http")
+# async def tradeberg_response_normalizer(request: Request, call_next):
+#     """Normalize responses for chat completions to guarantee TRADEBERG persona.
+# 
+#     This wraps successful JSON responses for both /api/tradeberg/chat/completions and
+#     the legacy /api/chat/completions (in case something slips through) and ensures:
+#       - Header X-TradeBerg: 1
+#       - The first assistant message is prefixed with "TRADEBERG: "
+#     """
+#     path = request.url.path
+#     response = await call_next(request)
+#     try:
+#         # Do NOT touch streaming responses
+#         ct = (response.headers.get("content-type") or "").lower()
+#         if "application/x-ndjson" in ct:
+#             return response
+# 
+#         if request.method == "POST" and path.endswith("/chat/completions") and response.status_code == 200:
+#             # Read the streaming body into bytes
+#             body_bytes = b""
+#             async for chunk in response.body_iterator:
+#                 body_bytes += chunk
+# 
+#             # Attempt JSON parse; if fails, return original
+#             import json
+#             payload = json.loads(body_bytes.decode("utf-8"))
+# 
+#             # Prefix content if present
+#             try:
+#                 msg = (payload.get("choices", [{}])[0] or {}).get("message", {})
+#                 if isinstance(msg, dict) and isinstance(msg.get("content"), str):
+#                     content = msg["content"]
+#                     if not content.startswith("TRADEBERG:"):
+#                         msg["content"] = f"TRADEBERG: {content}"
+#             except Exception:
+#                 pass
+# 
+#             # Return a new JSONResponse with the normalized payload and header
+#             from fastapi.responses import JSONResponse
+#             new_resp = JSONResponse(content=payload)
+#             new_resp.headers.update({"X-TradeBerg": "1"})
+#             return new_resp
+#     except Exception:
+#         # On any issue, fall back to original response
+#         return response
+# 
+#     return response
 
 @app.middleware("http")
 async def commit_session_after_request(request: Request, call_next):
@@ -1676,10 +1825,231 @@ async def chat_completion(
     form_data: dict,
     user=Depends(get_verified_user),
 ):
-    # TradeBerg: hard redirect ALL default chat completion traffic to our router
-    # to guarantee global system prompt + GPT‑5 enforcement, irrespective of
-    # frontend code paths or old builds.
-    return RedirectResponse(url="/api/tradeberg/chat/completions", status_code=307)
+    # TradeBerg: Direct Perplexity integration with REAL-TIME Binance data
+    try:
+        # Get user message from form_data
+        messages = form_data.get("messages", [])
+        user_message = "hello"
+        
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                content = msg.get("content", "")
+                if isinstance(content, str):
+                    user_message = content
+                elif isinstance(content, list):
+                    text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
+                    user_message = " ".join(text_parts)
+                break
+        
+        log.info(f"💬 Main chat processing: {user_message[:50]}...")
+        
+        # INJECT REAL-TIME BINANCE DATA
+        from open_webui.utils.realtime_data_injector import extract_symbols, inject_realtime_data
+        from open_webui.routers.tradeberg import GLOBAL_SYSTEM_PROMPT
+        
+        symbols = extract_symbols(user_message)
+        realtime_data_context = ""
+        
+        if symbols:
+            log.info(f"📊 Detected symbols: {symbols}")
+            # Inject real-time data
+            enhanced_messages = inject_realtime_data([{"role": "user", "content": user_message}])
+            if enhanced_messages:
+                realtime_data_context = enhanced_messages[0].get("content", user_message)
+        else:
+            realtime_data_context = user_message
+        
+        # Direct Perplexity API call with TRADEBERG system prompt
+        api_key = "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"
+        
+        enhanced_prompt = f"{realtime_data_context}\n\nIMPORTANT: Use the LIVE market data provided above. Generate visual charts using JSON blocks."
+        
+        import requests
+        import time
+        
+        # Check if streaming is requested
+        stream = form_data.get("stream", False)
+        
+        if stream:
+            # STREAMING MODE: Return data progressively
+            from fastapi.responses import StreamingResponse
+            import json
+            import asyncio
+            
+            async def generate_stream():
+                # STEP 1: Send animated card IMMEDIATELY with Binance data
+                if symbols:
+                    from open_webui.utils.realtime_data_aggregator import get_realtime_market_data
+                    market_data = get_realtime_market_data(symbols[0])
+                    
+                    if market_data:
+                        from open_webui.utils.response_to_charts import create_animated_card_response
+                        card_response = create_animated_card_response(symbols[0], market_data, "")
+                        
+                        # Send card immediately
+                        chunk = {
+                            "id": f"chatcmpl-{int(time.time())}",
+                            "object": "chat.completion.chunk",
+                            "created": int(time.time()),
+                            "model": "gpt-4o",
+                            "choices": [{
+                                "index": 0,
+                                "delta": {"content": card_response},
+                                "finish_reason": None
+                            }]
+                        }
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                        await asyncio.sleep(0.1)
+                
+                # STEP 2: Stream AI analysis
+                response = requests.post(
+                    "https://api.perplexity.ai/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "sonar-pro",
+                        "messages": [
+                            {"role": "system", "content": GLOBAL_SYSTEM_PROMPT},
+                            {"role": "user", "content": enhanced_prompt}
+                        ],
+                        "max_tokens": 3000,
+                        "temperature": 0.2,
+                        "stream": True
+                    },
+                    stream=True,
+                    timeout=60
+                )
+                
+                for line in response.iter_lines():
+                    if line:
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith('data: '):
+                            data_str = line_text[6:]
+                            if data_str.strip() == '[DONE]':
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                if 'choices' in data and len(data['choices']) > 0:
+                                    delta = data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        chunk = {
+                                            "id": f"chatcmpl-{int(time.time())}",
+                                            "object": "chat.completion.chunk",
+                                            "created": int(time.time()),
+                                            "model": "gpt-4o",
+                                            "choices": [{
+                                                "index": 0,
+                                                "delta": {"content": delta['content']},
+                                                "finish_reason": None
+                                            }]
+                                        }
+                                        yield f"data: {json.dumps(chunk)}\n\n"
+                            except:
+                                pass
+                
+                # Send done
+                yield "data: [DONE]\n\n"
+            
+            return StreamingResponse(generate_stream(), media_type="text/event-stream")
+        
+        else:
+            # NON-STREAMING MODE (original)
+            response = requests.post(
+                "https://api.perplexity.ai/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "sonar-pro",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": GLOBAL_SYSTEM_PROMPT
+                        },
+                        {
+                            "role": "user",
+                            "content": enhanced_prompt
+                        }
+                    ],
+                    "max_tokens": 3000,
+                    "temperature": 0.2
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                analysis = result['choices'][0]['message']['content']
+                
+                # Convert text response to visual chart format with REAL Binance data
+                from open_webui.utils.response_to_charts import convert_to_visual_response
+                formatted_response = convert_to_visual_response(user_message, analysis)
+                
+                # Create OpenAI-compatible response
+                openai_response = {
+                    "id": f"chatcmpl-{int(time.time())}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": "gpt-4o",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": formatted_response
+                        },
+                        "finish_reason": "stop"
+                    }],
+                    "usage": {
+                        "prompt_tokens": result.get('usage', {}).get('total_tokens', 0) // 2,
+                        "completion_tokens": result.get('usage', {}).get('total_tokens', 0) // 2,
+                        "total_tokens": result.get('usage', {}).get('total_tokens', 0)
+                    }
+                }
+                
+                log.info("✅ Main chat Perplexity response successful")
+                return JSONResponse(content=openai_response, headers={"X-TradeBerg": "1"})
+            else:
+                log.error(f"❌ Perplexity API error: {response.status_code}")
+                # Return fallback response
+                fallback_response = {
+                    "id": f"chatcmpl-{int(time.time())}",
+                    "object": "chat.completion", 
+                    "created": int(time.time()),
+                    "model": "gpt-4o",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "**TRADEBERG**: Market analytics temporarily unavailable. Please try again."
+                        },
+                        "finish_reason": "stop"
+                    }],
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+                }
+                return JSONResponse(content=fallback_response, headers={"X-TradeBerg": "1"})
+            
+    except Exception as e:
+        log.error(f"❌ Main chat error: {e}")
+        # Return fallback response
+        fallback_response = {
+            "id": f"chatcmpl-{int(time.time())}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": "gpt-4o", 
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "**TRADEBERG**: Providing market analytics... Please try your query again."
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        }
+        return JSONResponse(content=fallback_response, headers={"X-TradeBerg": "1"})
 
     # The original Open WebUI logic remains below (unreachable due to redirect)
     # and is kept for reference/rollback if needed.
@@ -2322,6 +2692,54 @@ async def get_opensearch_xml():
     </OpenSearchDescription>
     """
     return Response(content=xml_content, media_type="application/xml")
+
+
+# Perplexity Trading Bot Integration
+class PerplexityRequest(BaseModel):
+    message: str
+    image_data: Optional[str] = None
+    conversation_history: Optional[List[Dict]] = None
+    model: Optional[str] = "sonar-pro"
+
+@app.post("/api/perplexity/chat")
+async def perplexity_chat(request: PerplexityRequest):
+    """Perplexity Trading Bot chat endpoint"""
+    try:
+        response = await perplexity_service.send_message(
+            message=request.message,
+            image_data=request.image_data,
+            conversation_history=request.conversation_history or []
+        )
+        return response
+    except Exception as e:
+        logger.error(f"Perplexity chat error: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "An error occurred while processing your request"
+        }
+
+@app.get("/api/perplexity/health")
+async def perplexity_health():
+    """Perplexity service health check"""
+    return {
+        "status": "ok",
+        "service": "Perplexity Trading Bot",
+        "integrated": True
+    }
+
+@app.get("/api/perplexity/models")
+async def perplexity_models():
+    """Available Perplexity models"""
+    return {
+        "models": [
+            {
+                "id": "sonar-pro",
+                "name": "Sonar Pro",
+                "description": "Advanced model for trading analysis"
+            }
+        ]
+    }
 
 
 @app.get("/health")

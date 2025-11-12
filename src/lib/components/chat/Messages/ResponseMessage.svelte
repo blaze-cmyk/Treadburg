@@ -57,6 +57,12 @@
 const showAssistantAvatar = false;
 const showAssistantName = false;
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
+	
+	// TradeBerg: Smart chart system
+	import PriceChartCard from '../PriceChartCard.svelte';
+	import FinancialAnalysisRenderer from '../FinancialAnalysisRenderer.svelte';
+	import BinanceD3Renderer from '../BinanceD3Renderer.svelte';
+	import { detectSmartChart, hasAIGeneratedCharts } from '$lib/utils/smartChartDetector';
 
 	interface MessageType {
 		id: string;
@@ -167,6 +173,21 @@ const showAssistantName = false;
 	let generatingImage = false;
 
 	let showRateComment = false;
+	
+	// TradeBerg: Smart chart detection
+	let chartInfo = { showAICharts: false, showTradingView: false, symbol: '', interval: '', coinName: '' };
+	$: {
+		// Get the parent user message
+		if (message && message.parentId && history.messages[message.parentId]) {
+			const userMessage = history.messages[message.parentId];
+			if (userMessage.role === 'user' && userMessage.content && message.content) {
+				chartInfo = detectSmartChart(userMessage.content, message.content);
+			}
+		}
+	}
+	
+	// Check if AI response has charts
+	$: hasCharts = message.content && hasAIGeneratedCharts(message.content);
 
 	const copyToClipboard = async (text) => {
 		text = removeAllDetails(text);
@@ -764,6 +785,22 @@ const showAssistantName = false;
 								{#if message.content === '' && !message.error && ((model?.info?.meta?.capabilities?.status_updates ?? true) ? (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length === 0 || (message?.statusHistory?.at(-1)?.hidden ?? false) : true)}
 									<Skeleton />
 								{:else if message.content && message.error !== true}
+									<!-- TradeBerg: Binance D3.js Visualization -->
+									<BinanceD3Renderer content={message.content} />
+									
+									<!-- TradeBerg: Smart Chart System -->
+									{#if chartInfo.showAICharts || hasCharts}
+										<!-- Show AI-generated charts (D3/Plotly) -->
+										<FinancialAnalysisRenderer content={message.content} />
+									{:else if chartInfo.showTradingView && message.done}
+										<!-- Fallback to TradingView for simple price checks -->
+										<PriceChartCard 
+											symbol={chartInfo.symbol} 
+											interval={chartInfo.interval}
+											coinName={chartInfo.coinName}
+										/>
+									{/if}
+									
 									<!-- always show message contents even if there's an error -->
 									<!-- unless message.error === true which is legacy error handling, where the error message is stored in message.content -->
 									<ContentRenderer

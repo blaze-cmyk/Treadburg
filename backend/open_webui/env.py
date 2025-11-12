@@ -32,7 +32,18 @@ BASE_DIR = BACKEND_DIR.parent
 try:
     from dotenv import find_dotenv, load_dotenv
 
-    load_dotenv(find_dotenv(str(BASE_DIR / ".env")))
+    # Try loading from multiple locations
+    env_locations = [
+        BACKEND_DIR / ".env",  # backend/.env
+        BASE_DIR / ".env",     # parent/.env
+        find_dotenv()          # auto-find
+    ]
+    
+    for env_path in env_locations:
+        if env_path and os.path.exists(str(env_path)):
+            load_dotenv(str(env_path))
+            print(f"✅ Loaded .env from: {env_path}")
+            break
 except ImportError:
     print("dotenv not installed, skipping...")
 

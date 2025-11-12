@@ -97,10 +97,12 @@ import TradingViewWidget from '../market/TradingViewWidget.svelte';
 import LightweightChart from '../market/LightweightChart.svelte';
 import ChevronLeft from '../icons/ChevronLeft.svelte';
 import ChevronRight from '../icons/ChevronRight.svelte';
+import ChatTerminal from './ChatTerminal.svelte';
 
 	export let chatIdProp = '';
 
 	let loading = true;
+	let showTerminal = false;
 
 	const eventTarget = new EventTarget();
 	let controlPane;
@@ -134,6 +136,7 @@ import ChevronRight from '../icons/ChevronRight.svelte';
 	let imageGenerationEnabled = false;
 	let webSearchEnabled = false;
 	let codeInterpreterEnabled = false;
+	let perplexityEnabled = false;
 
 	let showCommands = false;
 
@@ -270,6 +273,7 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 		webSearchEnabled = false;
 		imageGenerationEnabled = false;
 		codeInterpreterEnabled = false;
+		perplexityEnabled = false;
 
 		setDefaults();
 	};
@@ -1865,11 +1869,9 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 			});
 		}
 
-		const stream =
-			model?.info?.params?.stream_response ??
-			$settings?.params?.stream_response ??
-			params?.stream_response ??
-			true;
+		// TradeBerg: Force non-streaming for ALL models to ensure proper response handling
+		// Backend returns JSON format, not streaming NDJSON
+		const stream = false;
 
 		let messages = [
 			params?.system || $settings.system
@@ -1928,92 +1930,9 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 			}
 		}
 
-        // Stream via NDJSON when enabled; else use JSON
-        if (stream) {
-            const [resp, controller] = await chatCompletion(
-                localStorage.token,
-                {
-                    stream: true,
-                    model: model.id,
-                    messages: messages,
-                    params: {
-                        ...$settings?.params,
-                        ...params,
-                        stop:
-                            (params?.stop ?? $settings?.params?.stop ?? undefined)
-                                ? (params?.stop.split(',').map((token) => token.trim()) ?? $settings.params.stop).map(
-                                        (str) => decodeURIComponent(JSON.parse('"' + str.replace(/\"/g, '\\"') + '"'))
-                                    )
-                                : undefined
-                    },
-                    files: (files?.length ?? 0) > 0 ? files : undefined,
-                    filter_ids: selectedFilterIds.length > 0 ? selectedFilterIds : undefined,
-                    tool_ids: toolIds.length > 0 ? toolIds : undefined,
-                    tool_servers: ($toolServers ?? []).filter(
-                        (server, idx) => toolServerIds.includes(idx) || toolServerIds.includes(server?.id)
-                    ),
-                    features: getFeatures(),
-                    variables: {
-                        ...getPromptVariables($user?.name, $settings?.userLocation ? userLocation : undefined)
-                    },
-                    model_item: $models.find((m) => m.id === model.id),
-                    session_id: $socket?.id,
-                    chat_id: $chatId,
-                    id: responseMessageId
-                },
-                `${WEBUI_BASE_URL}/api`
-            ).catch((error) => {
-                console.error(error);
-                return [null, null];
-            });
-
-            if (resp && resp.body) {
-                const reader = resp.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        let idx;
-                        while ((idx = buffer.indexOf('\n')) >= 0) {
-                            const line = buffer.slice(0, idx).trim();
-                            buffer = buffer.slice(idx + 1);
-                            if (!line) continue;
-                            try {
-                                const json = JSON.parse(line);
-                                const delta = json?.choices?.[0]?.delta?.content ?? '';
-                                if (delta) {
-                                    responseMessage.content = (responseMessage.content ?? '') + delta;
-                                    history.messages[responseMessageId] = responseMessage;
-                                    history.currentId = responseMessageId;
-                                    await tick();
-                                    if (autoScroll) scrollToBottom();
-                                }
-                            } catch (e) {
-                                // ignore malformed chunk
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-
-                responseMessage.done = true;
-                history.messages[responseMessageId] = responseMessage;
-                history.currentId = responseMessageId;
-                await chatCompletedHandler(
-                    _chatId,
-                    model.id,
-                    responseMessageId,
-                    createMessagesList(history, responseMessageId)
-                );
-                await tick();
-                scrollToBottom();
-            }
-            return;
-        }
+        // TradeBerg: Streaming disabled - using direct JSON responses only
+        // The streaming code block has been removed for simplicity
+        // All responses now use the non-streaming path below
 
         const res = await generateOpenAIChatCompletion(
 			localStorage.token,
@@ -2101,13 +2020,27 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 		});
 
         if (res) {
+			console.log('🔍 TradeBerg response received:', res);
 			// If TradeBerg returned a direct OpenAI response, render immediately
 			const content = res?.choices?.[0]?.message?.content ?? null;
+			console.log('📝 Extracted content:', content);
 			if (content) {
 				responseMessage.content = content;
 				responseMessage.done = true;
 				history.messages[responseMessageId] = responseMessage;
 				history.currentId = responseMessageId;
+				
+				// CRITICAL: Force Svelte reactivity update
+				history = history;
+				
+				console.log('✅ Response message updated:', responseMessage);
+				
+				// Update UI immediately
+				await tick();
+				if (autoScroll) {
+					scrollToBottom();
+				}
+				
 				// Persist chat to backend since we bypassed socket streaming
 				await chatCompletedHandler(
 					_chatId,
@@ -2116,14 +2049,20 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 					createMessagesList(history, responseMessageId)
 				);
 			} else if (res.error) {
+				console.error('❌ TradeBerg API error:', res.error);
 				await handleOpenAIError(res.error, responseMessage);
 			} else if (res.task_id) {
+				console.log('📋 Task ID received:', res.task_id);
 				if (taskIds) {
 					taskIds.push(res.task_id);
 				} else {
 					taskIds = [res.task_id];
 				}
+			} else {
+				console.warn('⚠️ Unexpected response format:', res);
 			}
+		} else {
+			console.error('❌ No response received from TradeBerg API');
 		}
 
 		await tick();
@@ -2580,6 +2519,7 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 										bind:imageGenerationEnabled
 										bind:codeInterpreterEnabled
 										bind:webSearchEnabled
+										bind:perplexityEnabled
 										bind:atSelectedModel
 										bind:showCommands
 										toolServers={$toolServers}
@@ -2625,6 +2565,7 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 										bind:imageGenerationEnabled
 										bind:codeInterpreterEnabled
 										bind:webSearchEnabled
+										bind:perplexityEnabled
 										bind:atSelectedModel
 										bind:showCommands
 										toolServers={$toolServers}
@@ -2775,6 +2716,7 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:perplexityEnabled
 									bind:atSelectedModel
 									bind:showCommands
 									toolServers={$toolServers}
@@ -2827,6 +2769,7 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 									bind:imageGenerationEnabled
 									bind:codeInterpreterEnabled
 									bind:webSearchEnabled
+									bind:perplexityEnabled
 									bind:atSelectedModel
 									bind:showCommands
 									toolServers={$toolServers}
@@ -2891,4 +2834,20 @@ $: rightPadding = (!chatPanelOpen && !isClosing) ? '56px' : '0px';
 			</div>
 		</div>
 	{/if}
+	
+	<!-- Terminal Toggle Button -->
+	<button
+		on:click={() => (showTerminal = !showTerminal)}
+		class="fixed bottom-20 right-6 z-40 p-3 bg-gray-800 hover:bg-gray-700 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+		title="Toggle Terminal"
+	>
+		<span class="text-xl">💻</span>
+	</button>
+	
+	<!-- Chat Terminal -->
+	<ChatTerminal bind:visible={showTerminal} />
 </div>
+
+<style>
+	@import '$lib/styles/modern-chat-enhancements.css';
+</style>

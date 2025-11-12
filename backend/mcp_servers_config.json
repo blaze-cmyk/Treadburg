@@ -1,0 +1,30 @@
+[
+  {
+    "type": "mcp",
+    "info": {
+      "id": "supabase-mcp-server",
+      "name": "Supabase MCP Server",
+      "description": "Database operations, migrations, and Supabase management"
+    },
+    "config": {
+      "access_control": null
+    },
+    "auth_type": "none",
+    "url": "http://localhost:3001/mcp/supabase",
+    "enabled": true
+  },
+  {
+    "type": "mcp",
+    "info": {
+      "id": "stripe",
+      "name": "Stripe MCP Server",
+      "description": "Payment processing, subscriptions, invoices, and customer management"
+    },
+    "config": {
+      "access_control": null
+    },
+    "auth_type": "none",
+    "url": "http://localhost:3002/mcp/stripe",
+    "enabled": true
+  }
+]

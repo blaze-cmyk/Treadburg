@@ -1,0 +1,148 @@
+/* Glass UI (Glassmorphism) Styles */
+
+/* Apply glass effect when enabled */
+:global(body.glass-ui-enabled) {
+	/* Main chat container */
+	:global(#chat-container) {
+		background: transparent !important;
+	}
+	
+	/* Messages container */
+	:global(#messages-container) {
+		background: rgba(255, 255, 255, 0.05) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border-radius: 12px !important;
+	}
+	
+	/* Message bubbles - user messages */
+	:global(.user-message) {
+		background: transparent !important;
+	}
+	
+	/* User message content bubble */
+	:global(.user-message .rounded-3xl) {
+		background: rgba(255, 255, 255, 0.15) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.25) !important;
+	}
+	
+	/* Assistant message content */
+	:global(.chat-assistant),
+	:global([class*="prose"]) {
+		background: rgba(255, 255, 255, 0.08) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
+		border-radius: 16px !important;
+		padding: 12px !important;
+	}
+	
+	/* Message input area */
+	:global(textarea) {
+		background: rgba(255, 255, 255, 0.15) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.25) !important;
+	}
+	
+	/* TradingView chart card */
+	:global([class*="chart"]),
+	:global([class*="price-chart"]) {
+		background: rgba(255, 255, 255, 0.1) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.25) !important;
+		border-radius: 12px !important;
+	}
+	
+	/* Buttons */
+	:global(button:not(.glass-toggle-btn):not(.close-btn):not(.background-option)) {
+		background: rgba(255, 255, 255, 0.1) !important;
+		backdrop-filter: blur(8px) !important;
+		-webkit-backdrop-filter: blur(8px) !important;
+		border: 1px solid rgba(255, 255, 255, 0.2) !important;
+	}
+	
+	:global(button:not(.glass-toggle-btn):not(.close-btn):not(.background-option):hover) {
+		background: rgba(255, 255, 255, 0.15) !important;
+	}
+	
+	/* Sidebar and panels */
+	:global([class*="sidebar"]),
+	:global([class*="panel"]) {
+		background: rgba(255, 255, 255, 0.08) !important;
+		backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		-webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	}
+	
+	/* Cards and containers */
+	:global([class*="card"]),
+	:global([class*="container"]:not(#messages-container)) {
+		background: rgba(255, 255, 255, 0.06) !important;
+		backdrop-filter: blur(8px) !important;
+		-webkit-backdrop-filter: blur(8px) !important;
+		border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	}
+	
+	/* Dropdowns and modals */
+	:global(.dropdown),
+	:global(.modal),
+	:global(.popover) {
+		background: rgba(255, 255, 255, 0.95) !important;
+		backdrop-filter: blur(20px) !important;
+		-webkit-backdrop-filter: blur(20px) !important;
+		border: 1px solid rgba(255, 255, 255, 0.3) !important;
+	}
+}
+
+/* Dark mode glass effects */
+:global(body.glass-ui-enabled.dark) {
+	/* Messages container */
+	:global(#messages-container) {
+		background: rgba(0, 0, 0, 0.2) !important;
+	}
+	
+	/* User message content bubble - dark mode */
+	:global(.user-message .rounded-3xl) {
+		background: rgba(0, 0, 0, 0.4) !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	}
+	
+	/* Assistant message content - dark mode */
+	:global(.chat-assistant),
+	:global([class*="prose"]) {
+		background: rgba(0, 0, 0, 0.3) !important;
+		border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	}
+	
+	:global(textarea) {
+		background: rgba(0, 0, 0, 0.4) !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	}
+	
+	:global([class*="chart"]),
+	:global([class*="price-chart"]) {
+		background: rgba(0, 0, 0, 0.3) !important;
+		border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	}
+	
+	:global(button:not(.glass-toggle-btn):not(.close-btn):not(.background-option)) {
+		background: rgba(255, 255, 255, 0.08) !important;
+		border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	}
+	
+	:global(button:not(.glass-toggle-btn):not(.close-btn):not(.background-option):hover) {
+		background: rgba(255, 255, 255, 0.12) !important;
+	}
+}
+
+/* Smooth transitions */
+:global(#messages-container),
+:global([id*="message-"]),
+:global(textarea),
+:global(button) {
+	transition: background 0.2s ease, backdrop-filter 0.2s ease, border 0.2s ease !important;
+}

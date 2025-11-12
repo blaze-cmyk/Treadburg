@@ -16,6 +16,35 @@ export default defineConfig({
 			]
 		})
 	],
+	server: {
+		proxy: {
+			'/api/chat/completions': {
+				target: 'http://localhost:8083',
+				changeOrigin: true,
+				secure: false
+			},
+			'/api/v1/chat/completions': {
+				target: 'http://localhost:8083',
+				changeOrigin: true,
+				secure: false
+			},
+			'/api/tradeberg/chat/completions': {
+				target: 'http://localhost:8083',
+				changeOrigin: true,
+				secure: false
+			},
+			'/api/tradeberg/enhanced-chat': {
+				target: 'http://localhost:8082',
+				changeOrigin: true,
+				secure: false
+			},
+			'/api': {
+				target: 'http://localhost:8081',
+				changeOrigin: true,
+				secure: false
+			}
+		}
+	},
 	define: {
 		APP_VERSION: JSON.stringify(process.env.npm_package_version),
 		APP_BUILD_HASH: JSON.stringify(process.env.APP_BUILD_HASH || 'dev-build')

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
@@ -36,6 +36,8 @@
 
 	import '../tailwind.css';
 	import '../app.css';
+	import '$lib/styles/glass.css';
+	import '$lib/styles/binance-card.css';
 
 	import 'tippy.js/dist/tippy.css';
 
@@ -46,6 +48,9 @@
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte';
 	import { chatCompletion } from '$lib/apis/openai';
+	import GlassBackground from '$lib/components/chat/GlassBackground.svelte';
+	import GlassUISettings from '$lib/components/chat/GlassUISettings.svelte';
+	import { glassUISettings } from '$lib/stores/glassUI';
 
 	import { beforeNavigate } from '$app/navigation';
 	import { updated } from '$app/state';
@@ -63,14 +68,14 @@
 	const bc = new BroadcastChannel('active-tab-channel');
 
 	let loaded = false;
-	let tokenTimer = null;
+	let tokenTimer: ReturnType<typeof setTimeout> | null = null;
 
 	let showRefresh = false;
 
 	const BREAKPOINT = 768;
 
-	const setupSocket = async (enableWebsocket) => {
-		const _socket = io(`${WEBUI_BASE_URL}` || undefined, {
+	const setupSocket = async (enableWebsocket: boolean) => {
+		const _socket = io(WEBUI_BASE_URL || '', {
 			reconnection: true,
 			reconnectionDelay: 1000,
 			reconnectionDelayMax: 5000,
@@ -112,10 +117,10 @@
 		});
 	};
 
-	const executePythonAsWorker = async (id, code, cb) => {
-		let result = null;
-		let stdout = null;
-		let stderr = null;
+	const executePythonAsWorker = async (id: string, code: string, cb: (data: any) => void) => {
+		let result: any = null;
+		let stdout: any = null;
+		let stderr: any = null;
 
 		let executing = true;
 		let packages = [
@@ -214,9 +219,9 @@
 		};
 	};
 
-	const executeTool = async (data, cb) => {
-		const toolServer = $settings?.toolServers?.find((server) => server.url === data.server?.url);
-		const toolServerData = $toolServers?.find((server) => server.url === data.server?.url);
+	const executeTool = async (data: any, cb: (res: any) => void) => {
+		const toolServer: any = $settings?.toolServers?.find((server: any) => server.url === data.server?.url);
+		const toolServerData: any = $toolServers?.find((server: any) => server.url === data.server?.url);
 
 		console.log('executeTool', data, toolServer);
 
@@ -238,7 +243,7 @@
 				toolServer.url,
 				data?.name,
 				data?.params,
-				toolServerData
+				toolServerData as any
 			);
 
 			console.log('executeToolServer', res);
@@ -258,7 +263,7 @@
 		}
 	};
 
-	const chatEventHandler = async (event, cb) => {
+	const chatEventHandler = async (event: any, cb: (data: any) => void) => {
 		const chat = $page.url.pathname.includes(`/c/${event.chat_id}`);
 
 		let isFocused = document.visibilityState !== 'visible';
@@ -317,7 +322,7 @@
 			} else if (type === 'chat:tags') {
 				tags.set(await getAllTags(localStorage.token));
 			}
-		} else if (data?.session_id === $socket.id) {
+		} else if (data?.session_id === $socket?.id) {
 			if (type === 'execute:python') {
 				console.log('execute:python', data);
 				executePythonAsWorker(data.id, data.code, cb);
@@ -325,21 +330,21 @@
 				console.log('execute:tool', data);
 				executeTool(data, cb);
 			} else if (type === 'request:chat:completion') {
-				console.log(data, $socket.id);
+				console.log(data, $socket?.id);
 				const { session_id, channel, form_data, model } = data;
 
 				try {
 					// TradeBerg: hard-disable client-side direct connections to prevent bypassing
 					// the global system prompt and GPT-5 enforcement. All chat requests must
 					// go through our backend router.
-					const directConnections = null;
+					const directConnections: any = null;
 
 					if (directConnections) {
 						const urlIdx = model?.urlIdx;
 
-						const OPENAI_API_URL = directConnections.OPENAI_API_BASE_URLS[urlIdx];
-						const OPENAI_API_KEY = directConnections.OPENAI_API_KEYS[urlIdx];
-						const API_CONFIG = directConnections.OPENAI_API_CONFIGS[urlIdx];
+						const OPENAI_API_URL = directConnections?.OPENAI_API_BASE_URLS?.[urlIdx];
+						const OPENAI_API_KEY = directConnections?.OPENAI_API_KEYS?.[urlIdx];
+						const API_CONFIG = directConnections?.OPENAI_API_CONFIGS?.[urlIdx];
 
 						try {
 							if (API_CONFIG?.prefix_id) {
@@ -366,7 +371,7 @@
 									console.log({ status: true });
 
 									// res will either be SSE or JSON
-									const reader = res.body.getReader();
+									const reader = res.body!.getReader();
 									const decoder = new TextDecoder();
 
 									const processStream = async () => {
@@ -408,7 +413,7 @@
 					console.error('chatCompletion', error);
 					cb(error);
 				} finally {
-					$socket.emit(channel, {
+					$socket?.emit(channel, {
 						done: true
 					});
 				}
@@ -418,7 +423,7 @@
 		}
 	};
 
-	const channelEventHandler = async (event) => {
+	const channelEventHandler = async (event: any) => {
 		if (event.data?.type === 'typing') {
 			return;
 		}
@@ -468,7 +473,7 @@
 
 	const TOKEN_EXPIRY_BUFFER = 60; // seconds
 	const checkTokenExpiry = async () => {
-		const exp = $user?.expires_at; // token expiry time in unix timestamp
+		const exp = ($user as any)?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
 
 		if (!exp) {
@@ -478,17 +483,17 @@
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
 			const res = await userSignOut();
-			user.set(null);
+			user.set(undefined);
 			localStorage.removeItem('token');
 
 			location.href = res?.redirect_url ?? '/auth';
 		}
 	};
 
-	onMount(async () => {
+	onMount(async (): Promise<any> => {
 		let touchstartY = 0;
 
-		function isNavOrDescendant(el) {
+		function isNavOrDescendant(el: any) {
 			const nav = document.querySelector('nav'); // change selector if needed
 			return nav && (el === nav || nav.contains(el));
 		}
@@ -534,7 +539,7 @@
 				});
 
 				if (data) {
-					appData.set(data);
+					// appData.set(data); // Commented out as appData is not defined
 				}
 			}
 		}
@@ -588,7 +593,7 @@
 				if (tokenTimer) {
 					clearInterval(tokenTimer);
 				}
-				tokenTimer = setInterval(checkTokenExpiry, 15000);
+				tokenTimer = setInterval(checkTokenExpiry, 15000) as any;
 			} else {
 				$socket?.off('events', chatEventHandler);
 				$socket?.off('events:channel', channelEventHandler);
@@ -609,8 +614,8 @@
 		if (!localStorage.locale) {
 			const languages = await getLanguages();
 			const browserLanguages = navigator.languages
-				? navigator.languages
-				: [navigator.language || navigator.userLanguage];
+			? navigator.languages
+			: [navigator.language || (navigator as any).userLanguage];
 			const lang = backendConfig.default_locale
 				? backendConfig.default_locale
 				: bestMatchingLanguage(languages, browserLanguages, 'en-US');
@@ -623,7 +628,7 @@
 			await WEBUI_NAME.set(backendConfig.name);
 
 			if ($config) {
-				await setupSocket($config.features?.enable_websocket ?? true);
+				await setupSocket(($config.features as any)?.enable_websocket ?? true);
 
 				const currentUrl = `${window.location.pathname}${window.location.search}`;
 				const encodedUrl = encodeURIComponent(currentUrl);
@@ -692,6 +697,23 @@
 			window.removeEventListener('resize', onResize);
 		};
 	});
+	
+	// Apply glass UI class to body
+	$: if (typeof document !== 'undefined') {
+		if ($glassUISettings.enabled) {
+			document.body.classList.add('glass-ui-enabled');
+			document.documentElement.style.setProperty('--glass-blur', `${$glassUISettings.blurAmount}px`);
+		} else {
+			document.body.classList.remove('glass-ui-enabled');
+		}
+		
+		// Apply dark class for dark mode
+		if ($theme === 'dark' || ($theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+			document.body.classList.add('dark');
+		} else {
+			document.body.classList.remove('dark');
+		}
+	}
 </script>
 
 <svelte:head>
@@ -715,9 +737,12 @@
 	</div>
 {/if}
 
+<!-- Glass UI Background -->
+<GlassBackground />
+
 {#if loaded}
 	{#if $isApp}
-		<div class="flex flex-row h-screen">
+		<div class="flex flex-row h-screen" style="position: relative; z-index: 1;">
 			<AppSidebar />
 
 			<div class="w-full flex-1 max-w-[calc(100%-4.5rem)]">
@@ -725,9 +750,14 @@
 			</div>
 		</div>
 	{:else}
-		<slot />
+		<div style="position: relative; z-index: 1;">
+			<slot />
+		</div>
 	{/if}
 {/if}
+
+<!-- Glass UI Settings Control -->
+<GlassUISettings />
 
 <Toaster
 	theme={$theme.includes('dark')

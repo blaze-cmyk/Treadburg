@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Existing OpenWeb UI service
+  ollama:
+    volumes:
+      - ollama:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+
+  open-webui:
+    build:
+      context: .
+      args:
+        OLLAMA_BASE_URL: '/ollama'
+      dockerfile: Dockerfile
+    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-main}
+    container_name: open-webui
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - ollama
+    ports:
+      - ${OPEN_WEBUI_PORT-8000}:8080
+    environment:
+      - 'OLLAMA_BASE_URL=http://ollama:11434'
+      - 'WEBUI_SECRET_KEY='
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+  # NEW: Perplexity Trading Bot (Isolated Service)
+  perplexity-bot:
+    build:
+      context: ./backend/perplexity_bot
+      dockerfile: Dockerfile
+    container_name: perplexity-trading-bot
+    ports:
+      - "8001:8001"
+    environment:
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=8001
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./backend/perplexity_bot/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  ollama: {}
+  open-webui: {}

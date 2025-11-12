@@ -54,6 +54,7 @@ import { page } from '$app/stores';
 	export let imageGenerationEnabled = false;
 	export let codeInterpreterEnabled = false;
 	export let webSearchEnabled = false;
+	export let perplexityEnabled = false;
 
 	export let onSelect = (e) => {};
 	export let onChange = (e) => {};
@@ -241,6 +242,7 @@ $: tradeTerminalMode = $page.url.searchParams.get('tt') === '1' || $page.url.sea
 					bind:imageGenerationEnabled
 					bind:codeInterpreterEnabled
 					bind:webSearchEnabled
+					bind:perplexityEnabled
 					bind:atSelectedModel
 					bind:showCommands
 					{toolServers}

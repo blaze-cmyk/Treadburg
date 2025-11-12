@@ -387,11 +387,41 @@ export const generateOpenAIChatCompletion = async (
 		body: JSON.stringify(requestBody)
 	})
 		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
+			if (!res.ok) {
+				const errorText = await res.text();
+				try {
+					const errorJson = JSON.parse(errorText);
+					throw errorJson;
+				} catch {
+					throw { error: { message: `HTTP ${res.status}: ${errorText}` } };
+				}
+			}
+			
+			// Handle both JSON and text responses
+			const responseText = await res.text();
+			try {
+				return JSON.parse(responseText);
+			} catch {
+				// If JSON parsing fails, create a valid OpenAI response format
+				return {
+					id: `chatcmpl-${Date.now()}`,
+					object: 'chat.completion',
+					created: Math.floor(Date.now() / 1000),
+					model: 'tradeberg',
+					choices: [{
+						index: 0,
+						message: {
+							role: 'assistant',
+							content: responseText
+						},
+						finish_reason: 'stop'
+					}]
+				};
+			}
 		})
 		.catch((err) => {
-			error = err?.detail ?? err;
+			console.error('TradeBerg API Error:', err);
+			error = err?.detail ?? err?.error?.message ?? err?.message ?? err;
 			return null;
 		});
 

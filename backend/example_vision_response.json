@@ -1,0 +1,69 @@
+{
+  "request": {
+    "user_message": "analyze BTCUSDT 15m chart",
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "use_vision": true,
+    "vision_provider": "openai",
+    "use_cache": true
+  },
+  "response": {
+    "analysis": "TRADEBERG: Net long positioning with trapped shorts below $43,200. Price swept PDH at $43,850 and absorbed sell-side liquidity. Imbalance zone at $43,500-$43,650 acting as magnet.\n\nLiquidity Map:\n- External: $44,500 (session high, obvious stops), $42,800 (PDL, retail stops)\n- Internal: $43,500-$43,650 (fair value gap from 08:45 sweep), $43,200 (absorption zone)\n- Session: Asia high $43,750, London low $43,150\n\nPath Likelihood:\n- Path A (Upside continuation): 65% probability\n  Beneficiaries: Late longs entering $43,400-$43,600, market makers who accumulated $43,000-$43,200\n  Victims: Shorts above $43,800, breakout chasers if rejection occurs\n  Thesis: Sweep of $44,500 liquidity pool to fuel next leg, vol compression suggests coiling\n\n- Path B (Range-bound chop): 25% probability\n  Beneficiaries: Range traders, theta sellers\n  Victims: Directional breakout traders on both sides\n  Thesis: Absorption at $43,800 resistance and $43,200 support creates equilibrium\n\n- Path C (Downside flush): 10% probability\n  Beneficiaries: Shorts, liquidity providers who fade the move\n  Victims: Trapped longs $43,400+, stop losses at $43,200\n  Thesis: Requires catalyst (macro shock, derivative unwind) to break structure\n\nTriggers/Invalidations:\n- Bullish trigger: 15m close above $43,850 with volume expansion (confirms sweep completion)\n- Bearish trigger: Break below $43,200 with acceptance (invalidates accumulation thesis)\n- Invalidation: 4h close below $42,800 kills upside scenario entirely\n\nTradeable Set-ups:\n- Entry: $43,450-$43,550 (imbalance fill, limit orders)\n- Stop: $43,150 (below absorption zone, invalidation point)\n- Target 1: $44,200 (session liquidity)\n- Target 2: $44,500 (external pool sweep)\n- Risk/Reward: 2.8:1 (T1), 4.2:1 (T2)\n- Execution: Scale in 40% at $43,500, 60% at $43,450. Trail stop to breakeven at $43,900.\n\nRisk Zones:\n- $43,800-$43,850: Trapped longs from failed breakout, potential resistance\n- $43,200: Stop cluster, likely to be hunted before continuation\n- $44,500+: Retail FOMO zone, expect profit-taking and reversal attempts\n\nDerivative Overlay:\n- Gamma wall likely at $44,000 (round number, options strike)\n- Put/call ratio suggests net long bias, dealer hedging flows supportive\n- Vol regime: Compression (IV rank 15th percentile), expansion expected on breakout\n\nCross-Asset Context:\n- DXY showing weakness (supportive for BTC)\n- Equity futures flat (neutral, no risk-off pressure)\n- Funding rates positive but not extreme (no overleveraged longs yet)",
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "method": "vision",
+    "provider": "openai",
+    "model": "gpt-4o",
+    "tokens_used": 1456,
+    "cost": 0.0487,
+    "from_cache": false,
+    "timestamp": "2025-11-04T21:58:30.123456",
+    "success": true,
+    "used_vision": true
+  },
+  "metadata": {
+    "analysis_quality": {
+      "institutional_terms_used": [
+        "liquidity",
+        "sweep",
+        "absorption",
+        "imbalance",
+        "trapped",
+        "positioning",
+        "flow",
+        "regime",
+        "gamma",
+        "vol compression",
+        "dealer hedging"
+      ],
+      "retail_terms_avoided": [
+        "RSI",
+        "MACD",
+        "Fibonacci",
+        "head and shoulders",
+        "triangle",
+        "wedge"
+      ],
+      "structure": {
+        "has_liquidity_map": true,
+        "has_scenario_tree": true,
+        "has_probabilities": true,
+        "has_entry_stop_targets": true,
+        "has_risk_reward": true,
+        "has_invalidation": true,
+        "has_derivative_overlay": true,
+        "has_cross_asset_context": true
+      },
+      "tone": "institutional",
+      "specificity": "high",
+      "actionability": "excellent"
+    },
+    "performance": {
+      "screenshot_capture_time_ms": 2340,
+      "vision_api_time_ms": 3120,
+      "total_time_ms": 5460,
+      "cache_hit": false,
+      "fallback_triggered": false
+    }
+  }
+}

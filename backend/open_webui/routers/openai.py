@@ -312,6 +312,14 @@ async def speech(request: Request, user=Depends(get_verified_user)):
 
         url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
         key = request.app.state.config.OPENAI_API_KEYS[idx]
+        
+        # Validate API key is set
+        if not key or key.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail="OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable or configure it in the admin settings."
+            )
+        
         api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
             str(idx),
             request.app.state.config.OPENAI_API_CONFIGS.get(url, {}),  # Legacy support
@@ -570,6 +578,13 @@ async def get_models(
     else:
         url = request.app.state.config.OPENAI_API_BASE_URLS[url_idx]
         key = request.app.state.config.OPENAI_API_KEYS[url_idx]
+        
+        # Validate API key is set
+        if not key or key.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail="OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable or configure it in the admin settings."
+            )
 
         api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
             str(url_idx),
@@ -904,6 +919,13 @@ async def generate_chat_completion(
     url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
     key = request.app.state.config.OPENAI_API_KEYS[idx]
 
+    # Validate API key is set
+    if not key or key.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable or configure it in the admin settings."
+        )
+
     # Check if model is a reasoning model that needs special handling
     if is_openai_reasoning_model(payload["model"]):
         payload = openai_reasoning_model_handler(payload)
@@ -991,6 +1013,19 @@ async def generate_chat_completion(
                 response = await r.text()
 
             if r.status >= 400:
+                # Check for API key authentication errors
+                if r.status == 401:
+                    error_msg = "OpenAI API key is invalid or expired. Please check your API key configuration."
+                    if isinstance(response, dict) and "error" in response:
+                        error_detail = response.get("error", {})
+                        if isinstance(error_detail, dict) and "message" in error_detail:
+                            error_msg = f"OpenAI API Error: {error_detail['message']}"
+                    log.error(f"OpenAI API authentication failed: {error_msg}")
+                    return JSONResponse(
+                        status_code=401,
+                        content={"error": {"message": error_msg, "type": "authentication_error"}}
+                    )
+                
                 if isinstance(response, (dict, list)):
                     return JSONResponse(status_code=r.status, content=response)
                 else:
@@ -999,6 +1034,14 @@ async def generate_chat_completion(
             return response
     except Exception as e:
         log.exception(e)
+        
+        # Check if it's an authentication-related error
+        error_str = str(e).lower()
+        if "api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
+            raise HTTPException(
+                status_code=401,
+                detail="OpenAI API key is invalid or expired. Please check your API key configuration."
+            )
 
         raise HTTPException(
             status_code=r.status if r else 500,
@@ -1033,6 +1076,14 @@ async def embeddings(request: Request, form_data: dict, user):
 
     url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
     key = request.app.state.config.OPENAI_API_KEYS[idx]
+    
+    # Validate API key is set
+    if not key or key.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable or configure it in the admin settings."
+        )
+    
     api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
         str(idx),
         request.app.state.config.OPENAI_API_CONFIGS.get(url, {}),  # Legacy support
@@ -1102,6 +1153,14 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
     idx = 0
     url = request.app.state.config.OPENAI_API_BASE_URLS[idx]
     key = request.app.state.config.OPENAI_API_KEYS[idx]
+    
+    # Validate API key is set
+    if not key or key.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable or configure it in the admin settings."
+        )
+    
     api_config = request.app.state.config.OPENAI_API_CONFIGS.get(
         str(idx),
         request.app.state.config.OPENAI_API_CONFIGS.get(

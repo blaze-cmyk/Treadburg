@@ -80,6 +80,13 @@
 	import CommandSuggestionList from './MessageInput/CommandSuggestionList.svelte';
 	import Knobs from '../icons/Knobs.svelte';
 	import ValvesModal from '../workspace/common/ValvesModal.svelte';
+	
+	// TradeBerg Chart Capture Components
+	import ChartCaptureButton from '../ChartCaptureButton.svelte';
+	import ImagePreview from '../ImagePreview.svelte';
+	
+	// Perplexity Trading Bot Integration
+	import { perplexityAPI } from '$lib/apis/perplexity';
 
 	const i18n = getContext('i18n');
 
@@ -100,14 +107,25 @@
 	export let taskIds = null;
 
 	export let prompt = '';
-	export let files = [];
+	export let files: any[] = [];
 
 	export let selectedToolIds = [];
 	export let selectedFilterIds = [];
+	
+	// TradeBerg Chart Capture State
+	let capturedImage: File | null = null;
+	let capturedImageMetadata: any = null;
+	let showImagePreview = false;
 
 	export let imageGenerationEnabled = false;
 	export let webSearchEnabled = false;
 	export let codeInterpreterEnabled = false;
+	
+	// Perplexity Trading Bot State
+	export let perplexityEnabled = false;
+	let perplexityLoading = false;
+	let perplexityError = '';
+	let lastPerplexityResponse = null;
 
 	let showInputVariablesModal = false;
 	let inputVariablesModalCallback = (variableValues) => {};
@@ -138,7 +156,8 @@
 		selectedFilterIds,
 		imageGenerationEnabled,
 		webSearchEnabled,
-		codeInterpreterEnabled
+		codeInterpreterEnabled,
+		perplexityEnabled
 	});
 
 	const inputVariableHandler = async (text: string): Promise<string> => {
@@ -292,6 +311,49 @@
 		if (chatInput) {
 			chatInputElement.replaceVariables(variables);
 			chatInputElement.focus();
+		}
+	};
+
+	// Perplexity Trading Bot Handler
+	const handlePerplexityRequest = async (message: string, imageData?: string) => {
+		if (!perplexityEnabled) return null;
+
+		try {
+			perplexityLoading = true;
+			perplexityError = '';
+
+			// Get conversation history from the current chat
+			const conversationHistory = history?.messages ? 
+				Object.values(history.messages)
+					.filter(msg => msg.role === 'user' || msg.role === 'assistant')
+					.slice(-10) // Last 10 messages for context
+					.map(msg => ({
+						role: msg.role,
+						content: msg.content
+					})) : [];
+
+			const response = await perplexityAPI.sendMessage({
+				message,
+				image_data: imageData,
+				conversation_history: conversationHistory,
+				model: 'sonar-pro'
+			});
+
+			if (response.success) {
+				lastPerplexityResponse = response;
+				return response;
+			} else {
+				perplexityError = response.error || 'Failed to get Perplexity response';
+				toast.error(`Perplexity Error: ${perplexityError}`);
+				return null;
+			}
+		} catch (error) {
+			console.error('Perplexity request failed:', error);
+			perplexityError = error.message || 'Unknown error';
+			toast.error(`Perplexity Error: ${perplexityError}`);
+			return null;
+		} finally {
+			perplexityLoading = false;
 		}
 	};
 
@@ -488,290 +550,440 @@
 		});
 	};
 
-const screenCaptureHandler = async () => {
-    try {
-        // Decide which chart to capture based on URL (?hc=1 for Historical Charts)
-    const sp = new URLSearchParams(window.location.search)
-    const inHistorical = sp.get('hc') === '1' || !!document.getElementById('historical-chart')
-    const inTT = sp.get('tt') === '1' || !!document.getElementById('tradeberg-chart')
+	const screenCaptureHandler = async () => {
+		try {
+			// Decide which chart to capture based on URL (?hc=1 for Historical Charts)
+			const sp = new URLSearchParams(window.location.search);
+			const inHistorical = sp.get('hc') === '1' || !!document.getElementById('historical-chart');
+			const inTT = sp.get('tt') === '1' || !!document.getElementById('tradeberg-chart');
 
-        if (inHistorical) {
-            // Direct canvas capture of Lightweight Charts (no permission prompt)
-            const chartEl = document.getElementById('historical-chart')
-            if (chartEl) {
-                const canvases = chartEl.querySelectorAll('canvas')
-                if (canvases && canvases.length > 0) {
-                    // Determine output size (devicePixelRatio aware)
-                    const dpr = window.devicePixelRatio || 1
-                    const w = Math.max(chartEl.clientWidth * dpr, ...Array.from(canvases).map(c => (c as HTMLCanvasElement).width))
-                    const h = Math.max(chartEl.clientHeight * dpr, ...Array.from(canvases).map(c => (c as HTMLCanvasElement).height))
-                    const out = document.createElement('canvas')
-                    out.width = Math.max(1, Math.floor(w))
-                    out.height = Math.max(1, Math.floor(h))
-                    const ctx = out.getContext('2d')!
-                    // Composite canvases in DOM order (background first)
-                    canvases.forEach((c: Element) => {
-                        const cnv = c as HTMLCanvasElement
-                        try { ctx.drawImage(cnv, 0, 0) } catch {}
-                    })
-                    const imageUrl = out.toDataURL('image/png')
-                    files = [...files, { type: 'image', url: imageUrl }]
-                    return
-                }
-            }
-            // Backend snapshot fallback using current chart state
-            try {
-                const st = (window as any).TradeBergHist || {}
-                const sym = st.symbol || 'BTCUSDT'
-                const iv = st.interval || '15m'
-                const prov = st.provider || 'yfinance'
-                const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(sym)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${Math.floor((document.getElementById('historical-chart')?.clientWidth||800))}&height=${Math.floor((document.getElementById('historical-chart')?.clientHeight||500))}`
-                const resp = await fetch(url)
-                if (resp.ok) {
-                    const blob = await resp.blob()
-                    const reader = new FileReader()
-                    const dataUrl: string = await new Promise((res,rej)=>{ reader.onload=()=>res(reader.result as string); reader.onerror=rej; reader.readAsDataURL(blob) })
-                    files = [...files, { type: 'image', url: dataUrl }]
-                    return
-                }
-            } catch {}
-            // Fallback to screen capture if snapshot not available
-        }
+			if (inHistorical) {
+				// Direct canvas capture of Lightweight Charts (no permission prompt)
+				const chartEl = document.getElementById('historical-chart');
+				if (chartEl) {
+					const canvases = chartEl.querySelectorAll('canvas');
+					if (canvases && canvases.length > 0) {
+						// Determine output size (devicePixelRatio aware)
+						const dpr = window.devicePixelRatio || 1;
+						const w = Math.max(
+							chartEl.clientWidth * dpr,
+							...Array.from(canvases).map((c) => (c as HTMLCanvasElement).width)
+						);
+						const h = Math.max(
+							chartEl.clientHeight * dpr,
+							...Array.from(canvases).map((c) => (c as HTMLCanvasElement).height)
+						);
+						const out = document.createElement('canvas');
+						out.width = Math.max(1, Math.floor(w));
+						out.height = Math.max(1, Math.floor(h));
+						const ctx = out.getContext('2d')!;
+						// Composite canvases in DOM order (background first)
+						canvases.forEach((c: Element) => {
+							const cnv = c as HTMLCanvasElement;
+							try {
+								ctx.drawImage(cnv, 0, 0);
+							} catch {}
+						});
+						const imageUrl = out.toDataURL('image/png');
+						files = [...files, { type: 'image', url: imageUrl }];
+						return;
+					}
+				}
+				// Backend snapshot fallback using current chart state
+				try {
+					const st = (window as any).TradeBergHist || {};
+					const sym = st.symbol || 'BTCUSDT';
+					const iv = st.interval || '15m';
+					const prov = st.provider || 'yfinance';
+					const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(sym)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${Math.floor(document.getElementById('historical-chart')?.clientWidth || 800)}&height=${Math.floor(document.getElementById('historical-chart')?.clientHeight || 500)}`;
+					const resp = await fetch(url);
+					if (resp.ok) {
+						const blob = await resp.blob();
+						const reader = new FileReader();
+						const dataUrl: string = await new Promise((res, rej) => {
+							reader.onload = () => res(reader.result as string);
+							reader.onerror = rej;
+							reader.readAsDataURL(blob);
+						});
+						files = [...files, { type: 'image', url: dataUrl }];
+						return;
+					}
+				} catch {}
+				// Fallback to screen capture if snapshot not available
+			}
 
-        // For TT, skip backend snapshot and directly fall through to screen capture prompt
+			// For TT, skip backend snapshot and directly fall through to screen capture prompt
 
-        // Trade Terminal or fallback: screen picker (cannot bypass browser prompt)
-        // @ts-ignore (preferCurrentTab is supported in Chromium)
-        const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { cursor: 'never' },
-            audio: false,
-            preferCurrentTab: true
-        } as any)
+			// Trade Terminal or fallback: screen picker (cannot bypass browser prompt)
+			// @ts-ignore (preferCurrentTab is supported in Chromium)
+			const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+				video: { cursor: 'never' },
+				audio: false,
+				preferCurrentTab: true
+			} as any);
 
-        const video = document.createElement('video')
-        video.srcObject = mediaStream
-        await video.play()
+			const video = document.createElement('video');
+			video.srcObject = mediaStream;
+			await video.play();
 
-        const vw = video.videoWidth
-        const vh = video.videoHeight
+			const vw = video.videoWidth;
+			const vh = video.videoHeight;
 
-        // If a chart element exists, crop to it; else capture whole tab
-        const targetId = inHistorical ? 'historical-chart' : 'tradeberg-chart'
-        const el = document.getElementById(targetId)
-        const rect = el?.getBoundingClientRect()
+			// If a chart element exists, crop to it; else capture whole tab
+			const targetId = inHistorical ? 'historical-chart' : 'tradeberg-chart';
+			const el = document.getElementById(targetId);
+			const rect = el?.getBoundingClientRect();
 
-        let srcX = 0, srcY = 0, srcW = vw, srcH = vh
-        if (rect) {
-            const scaleX = vw / window.innerWidth
-            const scaleY = vh / window.innerHeight
-            srcX = Math.max(0, Math.floor(rect.left * scaleX))
-            srcY = Math.max(0, Math.floor(rect.top * scaleY))
-            srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX))
-            srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY))
-        }
+			let srcX = 0,
+				srcY = 0,
+				srcW = vw,
+				srcH = vh;
+			if (rect) {
+				const scaleX = vw / window.innerWidth;
+				const scaleY = vh / window.innerHeight;
+				srcX = Math.max(0, Math.floor(rect.left * scaleX));
+				srcY = Math.max(0, Math.floor(rect.top * scaleY));
+				srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX));
+				srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY));
+			}
 
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, srcW)
-        canvas.height = Math.max(1, srcH)
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
+			const canvas = document.createElement('canvas');
+			canvas.width = Math.max(1, srcW);
+			canvas.height = Math.max(1, srcH);
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
 
-        mediaStream.getTracks().forEach((t) => t.stop())
-        window.focus()
+			mediaStream.getTracks().forEach((t) => t.stop());
+			window.focus();
 
-        const imageUrl = canvas.toDataURL('image/png')
-        files = [...files, { type: 'image', url: imageUrl }]
-        video.srcObject = null
-    } catch (error) {
-        console.error('Error capturing screen:', error)
-    }
-}
+			const imageUrl = canvas.toDataURL('image/png');
+			files = [...files, { type: 'image', url: imageUrl }];
+			video.srcObject = null;
+		} catch (error) {
+			console.error('Error capturing screen:', error);
+		}
+	};
 
-// Auto-attach chart snapshot on analyze prompts (Historical and Trade Terminal)
-async function maybeAutoAttachHistoricalSnapshot() {
-    try {
-        const sp = new URLSearchParams(window.location.search)
-        const inHistorical = sp.get('hc') === '1' || !!document.getElementById('historical-chart')
-        const inTT = sp.get('tt') === '1' || !!document.getElementById('tradeberg-chart')
-        if (!(inHistorical || inTT)) return
-        if (files?.some((f)=>f?.type==='image')) return
+	// Auto-attach chart snapshot on analyze prompts (Historical and Trade Terminal)
+	// NOTE: Backend now handles silent screenshot capture for analysis requests
+	// This function is kept for manual captures or fallback scenarios
+	async function maybeAutoAttachHistoricalSnapshot() {
+		try {
+			const sp = new URLSearchParams(window.location.search);
+			const inHistorical = sp.get('hc') === '1' || !!document.getElementById('historical-chart');
+			const inTT = sp.get('tt') === '1' || !!document.getElementById('tradeberg-chart');
+			if (!(inHistorical || inTT)) return;
+			if (files?.some((f) => f?.type === 'image')) return;
 
-        const trigger = /\b(analy[zs]e|analysis|ta|setup|play|chart)\b/i.test(prompt) || /\$[A-Za-z]/.test(prompt)
-        if (!trigger) return
+			const trigger =
+				/\b(analy[zs]e|analysis|ta|setup|play|chart)\b/i.test(prompt) || /\$[A-Za-z]/.test(prompt);
+			if (!trigger) return;
 
-        // Extract symbol/timeframe if present
-        let m = prompt.match(/\$([A-Za-z\^][A-Za-z0-9=\.\-]{1,14})/)
-        let extracted = m ? m[1].toUpperCase() : null
-        // Accept formats: 15m, 15 m, 15 min, 15 minutes, 1h, 1 h, 1 hour, 1 day
-        let tf: string | null = null
-        const tfm1 = prompt.match(/\b(1m|5m|15m|30m|1h|4h|1d)\b/i)
-        if (tfm1) tf = tfm1[1]
-        if (!tf) {
-            const tfm2 = prompt.match(/\b(\d{1,2})\s*(m|min|mins|minute|minutes)\b/i)
-            if (tfm2) tf = `${tfm2[1]}m`
-        }
-        if (!tf) {
-            const tfm3 = prompt.match(/\b(\d{1,2})\s*(h|hr|hrs|hour|hours)\b/i)
-            if (tfm3) tf = `${tfm3[1]}h`
-        }
-        if (!tf) {
-            const tfm4 = prompt.match(/\b(\d{1,2})\s*(d|day|days)\b/i)
-            if (tfm4) tf = `${tfm4[1]}d`
-        }
+			// ============================================
+			// SILENT BACKEND CAPTURE - Skip frontend screenshot
+			// ============================================
+			// Backend will handle screenshot capture silently for analysis requests
+			// This prevents permission popups and ensures screenshots don't appear in chat
+			// Only skip if this looks like an analysis request
+			const analysisKeywords = [
+				'analyze',
+				'analysis',
+				'trend',
+				'support',
+				'resistance',
+				'buy',
+				'sell',
+				'entry',
+				'exit',
+				'signal',
+				'pattern',
+				'technical',
+				'indicator',
+				'bullish',
+				'bearish',
+				'setup',
+				'trade'
+			];
+			const isAnalysisRequest = analysisKeywords.some((kw) =>
+				prompt.toLowerCase().includes(kw.toLowerCase())
+			);
 
-        const stHist = (window as any).TradeBergHist || {}
-        const stTT = (window as any).TradeBergTT || {}
-        let sym = extracted || (inHistorical ? stHist.symbol : stTT.symbol) || 'BTCUSDT'
-        const iv = (tf || (inHistorical ? stHist.interval : stTT.interval) || '15m').toLowerCase()
-        let prov = inHistorical ? (stHist.provider || 'yfinance') : (stTT.provider || 'binance')
-        const el = (inHistorical
-            ? (document.getElementById('historical-chart') as HTMLElement)
-            : (document.getElementById('tradeberg-chart') as HTMLElement))
-        const w = Math.floor((el?.clientWidth||800))
-        const h = Math.floor((el?.clientHeight||500))
+			// Skip frontend capture for analysis requests - backend handles it silently
+			if (isAnalysisRequest) {
+				console.log('📸 Backend will handle silent screenshot capture for analysis request');
+				return; // Exit early - backend will capture screenshot silently
+			}
 
-        const normalizeYahooSymbolJS = (s)=>{ const u=(s||'').toUpperCase(); if(u.endsWith('USDT')) return `${u.replace('USDT','')}-USD`; if(u.endsWith('USD')) return `${u.replace('USD','')}-USD`; return u }
-        const symForProvider = prov === 'yfinance' ? normalizeYahooSymbolJS(sym) : sym
+			// Extract symbol/timeframe if present
+			let m = prompt.match(/\$([A-Za-z\^][A-Za-z0-9=\.\-]{1,14})/);
+			let extracted = m ? m[1].toUpperCase() : null;
+			// Accept formats: 15m, 15 m, 15 min, 15 minutes, 1h, 1 h, 1 hour, 1 day
+			let tf: string | null = null;
+			const tfm1 = prompt.match(/\b(1m|5m|15m|30m|1h|4h|1d)\b/i);
+			if (tfm1) tf = tfm1[1];
+			if (!tf) {
+				const tfm2 = prompt.match(/\b(\d{1,2})\s*(m|min|mins|minute|minutes)\b/i);
+				if (tfm2) tf = `${tfm2[1]}m`;
+			}
+			if (!tf) {
+				const tfm3 = prompt.match(/\b(\d{1,2})\s*(h|hr|hrs|hour|hours)\b/i);
+				if (tfm3) tf = `${tfm3[1]}h`;
+			}
+			if (!tf) {
+				const tfm4 = prompt.match(/\b(\d{1,2})\s*(d|day|days)\b/i);
+				if (tfm4) tf = `${tfm4[1]}d`;
+			}
 
-        let imageAttached = false
-        // Backend snapshot first (Historical only)
-        if (inHistorical) {
-            try {
-                const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${w}&height=${h}`
-                const resp = await fetch(url)
-                if (resp.ok) {
-                    const blob = await resp.blob()
-                    const reader = new FileReader()
-                    const dataUrl: string = await new Promise((res,rej)=>{ reader.onload=()=>res(reader.result as string); reader.onerror=rej; reader.readAsDataURL(blob) })
-                    files = [...files, { type: 'image', url: dataUrl }]
-                    await tick()
-                    imageAttached = true
-                }
-            } catch {}
-        }
+			const stHist = (window as any).TradeBergHist || {};
+			const stTT = (window as any).TradeBergTT || {};
+			let sym = extracted || (inHistorical ? stHist.symbol : stTT.symbol) || 'BTCUSDT';
+			const iv = (tf || (inHistorical ? stHist.interval : stTT.interval) || '15m').toLowerCase();
+			let prov = inHistorical ? stHist.provider || 'yfinance' : stTT.provider || 'binance';
+			const el = inHistorical
+				? (document.getElementById('historical-chart') as HTMLElement)
+				: (document.getElementById('tradeberg-chart') as HTMLElement);
+			const w = Math.floor(el?.clientWidth || 800);
+			const h = Math.floor(el?.clientHeight || 500);
 
-        // For Trade Terminal, if backend failed, ask the browser (tab capture prompt)
-        if (inTT) {
-            try {
-                const elTT = document.getElementById('tradeberg-chart') as HTMLElement
-                const rect = elTT?.getBoundingClientRect()
-                // @ts-ignore preferCurrentTab supported in Chromium
-                const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'never' }, audio: false, preferCurrentTab: true } as any)
-                const video = document.createElement('video')
-                video.srcObject = mediaStream
-                await video.play()
-                const vw = video.videoWidth
-                const vh = video.videoHeight
-                let srcX = 0, srcY = 0, srcW = vw, srcH = vh
-                if (rect) {
-                    const scaleX = vw / window.innerWidth
-                    const scaleY = vh / window.innerHeight
-                    srcX = Math.max(0, Math.floor(rect.left * scaleX))
-                    srcY = Math.max(0, Math.floor(rect.top * scaleY))
-                    srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX))
-                    srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY))
-                }
-                const canvas = document.createElement('canvas')
-                canvas.width = Math.max(1, srcW)
-                canvas.height = Math.max(1, srcH)
-                const ctx = canvas.getContext('2d')!
-                ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
-                mediaStream.getTracks().forEach((t)=>t.stop())
-                const dataUrl = canvas.toDataURL('image/png')
-                files = [...files, { type: 'image', url: dataUrl }]
-                await tick()
-                imageAttached = true
-            } catch {}
-        }
+			const normalizeYahooSymbolJS = (s) => {
+				const u = (s || '').toUpperCase();
+				if (u.endsWith('USDT')) return `${u.replace('USDT', '')}-USD`;
+				if (u.endsWith('USD')) return `${u.replace('USD', '')}-USD`;
+				return u;
+			};
+			const symForProvider = prov === 'yfinance' ? normalizeYahooSymbolJS(sym) : sym;
 
-        // Historical (or fallback after TT prompt) → backend snapshot
-        if (!imageAttached && inHistorical) {
-            try {
-                const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${w}&height=${h}`
-                const resp = await fetch(url)
-                if (resp.ok) {
-                    const blob = await resp.blob()
-                    const reader = new FileReader()
-                    const dataUrl: string = await new Promise((res,rej)=>{ reader.onload=()=>res(reader.result as string); reader.onerror=rej; reader.readAsDataURL(blob) })
-                    files = [...files, { type: 'image', url: dataUrl }]
-                    await tick()
-                    imageAttached = true
-                }
-            } catch {}
-        }
+			let imageAttached = false;
+			// Backend snapshot first (Historical only)
+			if (inHistorical) {
+				try {
+					const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${w}&height=${h}`;
+					const resp = await fetch(url);
+					if (resp.ok) {
+						const blob = await resp.blob();
+						const reader = new FileReader();
+						const dataUrl: string = await new Promise((res, rej) => {
+							reader.onload = () => res(reader.result as string);
+							reader.onerror = rej;
+							reader.readAsDataURL(blob);
+						});
+						files = [...files, { type: 'image', url: dataUrl }];
+						await tick();
+						imageAttached = true;
+					}
+				} catch {}
+			}
 
-        if (!imageAttached && inHistorical) {
-            // Fallback: composite visible canvases in historical chart
-            const chartEl = document.getElementById('historical-chart')
-            if (chartEl) {
-                const canvases = chartEl.querySelectorAll('canvas')
-                if (canvases && canvases.length > 0) {
-                    const dpr = window.devicePixelRatio || 1
-                    const W = Math.max(chartEl.clientWidth * dpr, ...Array.from(canvases).map(c => (c as HTMLCanvasElement).width))
-                    const H = Math.max(chartEl.clientHeight * dpr, ...Array.from(canvases).map(c => (c as HTMLCanvasElement).height))
-                    const out = document.createElement('canvas')
-                    out.width = Math.max(1, Math.floor(W)); out.height = Math.max(1, Math.floor(H))
-                    const ctx = out.getContext('2d')!
-                    canvases.forEach((c: Element) => { try { ctx.drawImage(c as HTMLCanvasElement, 0, 0) } catch {} })
-                    const dataUrl = out.toDataURL('image/png')
-                    files = [...files, { type: 'image', url: dataUrl }]
-                    await tick()
-                    imageAttached = true
-                }
-            }
-        }
+			// For Trade Terminal, if backend failed, ask the browser (tab capture prompt)
+			if (inTT) {
+				try {
+					const elTT = document.getElementById('tradeberg-chart') as HTMLElement;
+					const rect = elTT?.getBoundingClientRect();
+					// @ts-ignore preferCurrentTab supported in Chromium
+					const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+						video: { cursor: 'never' },
+						audio: false,
+						preferCurrentTab: true
+					} as any);
+					const video = document.createElement('video');
+					video.srcObject = mediaStream;
+					await video.play();
+					const vw = video.videoWidth;
+					const vh = video.videoHeight;
+					let srcX = 0,
+						srcY = 0,
+						srcW = vw,
+						srcH = vh;
+					if (rect) {
+						const scaleX = vw / window.innerWidth;
+						const scaleY = vh / window.innerHeight;
+						srcX = Math.max(0, Math.floor(rect.left * scaleX));
+						srcY = Math.max(0, Math.floor(rect.top * scaleY));
+						srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX));
+						srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY));
+					}
+					const canvas = document.createElement('canvas');
+					canvas.width = Math.max(1, srcW);
+					canvas.height = Math.max(1, srcH);
+					const ctx = canvas.getContext('2d')!;
+					ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
+					mediaStream.getTracks().forEach((t) => t.stop());
+					const dataUrl = canvas.toDataURL('image/png');
+					files = [...files, { type: 'image', url: dataUrl }];
+					await tick();
+					imageAttached = true;
+				} catch {}
+			}
 
-        // If still no image in Trade Terminal, ask for tab permission and crop to TV area
-        if (!imageAttached && inTT) {
-            try {
-                const el = document.getElementById('tradeberg-chart') as HTMLElement
-                const rect = el?.getBoundingClientRect()
-                // @ts-ignore preferCurrentTab supported in Chromium
-                const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'never' }, audio: false, preferCurrentTab: true } as any)
-                const video = document.createElement('video')
-                video.srcObject = mediaStream
-                await video.play()
-                const vw = video.videoWidth
-                const vh = video.videoHeight
-                let srcX = 0, srcY = 0, srcW = vw, srcH = vh
-                if (rect) {
-                    const scaleX = vw / window.innerWidth
-                    const scaleY = vh / window.innerHeight
-                    srcX = Math.max(0, Math.floor(rect.left * scaleX))
-                    srcY = Math.max(0, Math.floor(rect.top * scaleY))
-                    srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX))
-                    srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY))
-                }
-                const canvas = document.createElement('canvas')
-                canvas.width = Math.max(1, srcW)
-                canvas.height = Math.max(1, srcH)
-                const ctx = canvas.getContext('2d')!
-                ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height)
-                mediaStream.getTracks().forEach((t)=>t.stop())
-                const dataUrl = canvas.toDataURL('image/png')
-                files = [...files, { type: 'image', url: dataUrl }]
-                await tick()
-                imageAttached = true
-            } catch {}
-        }
+			// Historical (or fallback after TT prompt) → backend snapshot
+			if (!imageAttached && inHistorical) {
+				try {
+					const url = `${WEBUI_BASE_URL}/api/markets/snapshot?symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&provider=${encodeURIComponent(prov)}&width=${w}&height=${h}`;
+					const resp = await fetch(url);
+					if (resp.ok) {
+						const blob = await resp.blob();
+						const reader = new FileReader();
+						const dataUrl: string = await new Promise((res, rej) => {
+							reader.onload = () => res(reader.result as string);
+							reader.onerror = rej;
+							reader.readAsDataURL(blob);
+						});
+						files = [...files, { type: 'image', url: dataUrl }];
+						await tick();
+						imageAttached = true;
+					}
+				} catch {}
+			}
 
-        // Add last price context if we have symbol/provider
-        try {
-            const cUrl = `${WEBUI_BASE_URL}/api/markets/candles?provider=${encodeURIComponent(prov)}&symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&limit=1`
-            const cr = await fetch(cUrl)
-            if (cr.ok) {
-                const cj = await cr.json()
-                const last = (cj?.candles||[]).at(-1)
-                if (last) {
-                    const ts = Number(last[0])
-                    const close = last[4]
-                    const ctxLine = `(context) symbol=${sym}, interval=${iv}, last_close=${close} @ ${new Date(ts).toISOString()}`
-                    if (!prompt.includes('(context)')) prompt = `${ctxLine}\n` + prompt
-                }
-            }
-        } catch {}
-    } catch {}
-}
+			if (!imageAttached && inHistorical) {
+				// Fallback: composite visible canvases in historical chart
+				const chartEl = document.getElementById('historical-chart');
+				if (chartEl) {
+					const canvases = chartEl.querySelectorAll('canvas');
+					if (canvases && canvases.length > 0) {
+						const dpr = window.devicePixelRatio || 1;
+						const W = Math.max(
+							chartEl.clientWidth * dpr,
+							...Array.from(canvases).map((c) => (c as HTMLCanvasElement).width)
+						);
+						const H = Math.max(
+							chartEl.clientHeight * dpr,
+							...Array.from(canvases).map((c) => (c as HTMLCanvasElement).height)
+						);
+						const out = document.createElement('canvas');
+						out.width = Math.max(1, Math.floor(W));
+						out.height = Math.max(1, Math.floor(H));
+						const ctx = out.getContext('2d')!;
+						canvases.forEach((c: Element) => {
+							try {
+								ctx.drawImage(c as HTMLCanvasElement, 0, 0);
+							} catch {}
+						});
+						const dataUrl = out.toDataURL('image/png');
+						files = [...files, { type: 'image', url: dataUrl }];
+						await tick();
+						imageAttached = true;
+					}
+				}
+			}
+
+			// If still no image in Trade Terminal, ask for tab permission and crop to TV area
+			if (!imageAttached && inTT) {
+				try {
+					const el = document.getElementById('tradeberg-chart') as HTMLElement;
+					const rect = el?.getBoundingClientRect();
+					// @ts-ignore preferCurrentTab supported in Chromium
+					const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+						video: { cursor: 'never' },
+						audio: false,
+						preferCurrentTab: true
+					} as any);
+					const video = document.createElement('video');
+					video.srcObject = mediaStream;
+					await video.play();
+					const vw = video.videoWidth;
+					const vh = video.videoHeight;
+					let srcX = 0,
+						srcY = 0,
+						srcW = vw,
+						srcH = vh;
+					if (rect) {
+						const scaleX = vw / window.innerWidth;
+						const scaleY = vh / window.innerHeight;
+						srcX = Math.max(0, Math.floor(rect.left * scaleX));
+						srcY = Math.max(0, Math.floor(rect.top * scaleY));
+						srcW = Math.min(vw - srcX, Math.floor(rect.width * scaleX));
+						srcH = Math.min(vh - srcY, Math.floor(rect.height * scaleY));
+					}
+					const canvas = document.createElement('canvas');
+					canvas.width = Math.max(1, srcW);
+					canvas.height = Math.max(1, srcH);
+					const ctx = canvas.getContext('2d')!;
+					ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
+					mediaStream.getTracks().forEach((t) => t.stop());
+					const dataUrl = canvas.toDataURL('image/png');
+					files = [...files, { type: 'image', url: dataUrl }];
+					await tick();
+					imageAttached = true;
+				} catch {}
+			}
+
+			// Add last price context if we have symbol/provider
+			try {
+				const cUrl = `${WEBUI_BASE_URL}/api/markets/candles?provider=${encodeURIComponent(prov)}&symbol=${encodeURIComponent(symForProvider)}&interval=${encodeURIComponent(iv)}&limit=1`;
+				const cr = await fetch(cUrl);
+				if (cr.ok) {
+					const cj = await cr.json();
+					const last = (cj?.candles || []).at(-1);
+					if (last) {
+						const ts = Number(last[0]);
+						const close = last[4];
+						const ctxLine = `(context) symbol=${sym}, interval=${iv}, last_close=${close} @ ${new Date(ts).toISOString()}`;
+						if (!prompt.includes('(context)')) prompt = `${ctxLine}\n` + prompt;
+					}
+				}
+			} catch {}
+		} catch {}
+	}
+
+	// TradeBerg Chart Capture Handler
+	/**
+	 * Handle successful chart screenshot capture
+	 */
+	async function handleChartCapture(event: CustomEvent<{ file: File; metadata: any }>) {
+		const { file, metadata } = event.detail;
+		
+		// Add to files array for sending with message
+		files = [
+			...files,
+			{
+				type: 'image',
+				url: URL.createObjectURL(file),
+				name: file.name,
+				size: file.size,
+				file: file
+			}
+		];
+		
+		// Set default analysis prompt if chat is empty
+		if (!prompt.trim()) {
+			prompt = 'Analyze this chart';
+		}
+		
+		console.log('Chart captured:', { file, metadata });
+	}
+	
+	/**
+	 * Handle chart capture error
+	 */
+	function handleChartCaptureError(event: CustomEvent<{ message: string }>) {
+		const { message } = event.detail;
+		console.error('Chart capture error:', message);
+		// Error toast is already shown by the ChartCaptureButton component
+	}
+	
+	/**
+	 * Handle image preview removal
+	 */
+	function handleImageRemove() {
+		if (capturedImage) {
+			// Remove from files array
+			files = files.filter(file => 
+				!(file.type === 'image' && file.name === capturedImage?.name)
+			);
+			
+			// Clean up object URL
+			const imageFile = files.find(f => f.file === capturedImage);
+			if (imageFile?.url) {
+				URL.revokeObjectURL(imageFile.url);
+			}
+			
+			// Reset state
+			capturedImage = null;
+			capturedImageMetadata = null;
+			showImagePreview = false;
+		}
+	}
 
 	const uploadFileHandler = async (file, fullContext: boolean = false) => {
 		if ($_user?.role !== 'admin' && !($_user?.permissions?.chat?.file_upload ?? true)) {
@@ -1302,8 +1514,53 @@ async function maybeAutoAttachHistoricalSnapshot() {
 							on:submit|preventDefault={async () => {
 								// Historical Charts: auto attach snapshot when analyzing
 								await maybeAutoAttachHistoricalSnapshot();
-								// submit
-								dispatch('submit', prompt);
+								
+								// Check if Perplexity is enabled and handle the request
+								if (perplexityEnabled && prompt.trim()) {
+									// Extract image data if there are image files
+									let imageData = null;
+									const imageFiles = files.filter(f => f.type === 'image');
+									if (imageFiles.length > 0) {
+										// Convert first image to base64
+										const imageFile = imageFiles[0];
+										if (imageFile.url && imageFile.url.startsWith('data:')) {
+											imageData = imageFile.url.split(',')[1]; // Remove data:image/...;base64, prefix
+										}
+									}
+
+									// Process through Perplexity
+									const perplexityResponse = await handlePerplexityRequest(prompt, imageData);
+									
+									if (perplexityResponse) {
+										// Create a formatted response with Perplexity analysis
+										let formattedResponse = `🧠 **Perplexity Trading Analysis**\n\n${perplexityResponse.message}`;
+										
+										// Add citations if available
+										if (perplexityResponse.citations && perplexityResponse.citations.length > 0) {
+											formattedResponse += '\n\n**Sources:**\n';
+											perplexityResponse.citations.forEach((citation, index) => {
+												formattedResponse += `${index + 1}. [${citation.title}](${citation.url})\n`;
+											});
+										}
+										
+										// Add related questions if available
+										if (perplexityResponse.related_questions && perplexityResponse.related_questions.length > 0) {
+											formattedResponse += '\n\n**Related Questions:**\n';
+											perplexityResponse.related_questions.forEach((question, index) => {
+												formattedResponse += `${index + 1}. ${question}\n`;
+											});
+										}
+										
+										// Dispatch the enhanced response
+										dispatch('submit', formattedResponse);
+									} else {
+										// Fallback to normal submission if Perplexity fails
+										dispatch('submit', prompt);
+									}
+								} else {
+									// Normal submission
+									dispatch('submit', prompt);
+								}
 							}}
 						>
 							<div
@@ -1342,6 +1599,36 @@ async function maybeAutoAttachHistoricalSnapshot() {
 												</button>
 											</div>
 										</div>
+									</div>
+								{/if}
+
+								<!-- TradeBerg Chart Capture Preview -->
+								{#if showImagePreview && capturedImage}
+									<div class="mx-2 mt-2.5 pb-1.5">
+										<div class="flex items-center gap-2 mb-2">
+											<svg 
+												class="w-4 h-4 text-green-400" 
+												xmlns="http://www.w3.org/2000/svg" 
+												fill="none" 
+												viewBox="0 0 24 24" 
+												stroke="currentColor"
+											>
+												<path 
+													stroke-linecap="round" 
+													stroke-linejoin="round" 
+													stroke-width="2" 
+													d="M5 13l4 4L19 7"
+												></path>
+											</svg>
+											<span class="text-sm text-gray-300">Chart captured - ready to send</span>
+										</div>
+										
+										<ImagePreview 
+											file={capturedImage}
+											metadata={capturedImageMetadata}
+											on:remove={handleImageRemove}
+											maxHeight={120}
+										/>
 									</div>
 								{/if}
 
@@ -1892,10 +2179,42 @@ async function maybeAutoAttachHistoricalSnapshot() {
 													</button>
 												</Tooltip>
 											{/if}
+
+											<Tooltip content="Perplexity Trading Bot" placement="top">
+												<button
+													aria-label={perplexityEnabled
+														? 'Disable Perplexity Trading Bot'
+														: 'Enable Perplexity Trading Bot'}
+													aria-pressed={perplexityEnabled}
+													on:click|preventDefault={() =>
+														(perplexityEnabled = !perplexityEnabled)}
+													type="button"
+													class="group p-[7px] flex gap-1.5 items-center text-sm transition-colors duration-300 max-w-full overflow-hidden {perplexityEnabled
+														? 'text-purple-500 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-400/10 dark:hover:bg-purple-700/10 border border-purple-200/40 dark:border-purple-500/20'
+														: 'bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'} {($settings?.highContrastMode ??
+													false)
+														? 'm-1'
+														: 'focus:outline-hidden rounded-full'}"
+												>
+													<Sparkles className="size-3.5" strokeWidth="2" />
+													<div class="hidden group-hover:block">
+														<XMark className="size-4" strokeWidth="1.75" />
+													</div>
+												</button>
+											</Tooltip>
 										</div>
 									</div>
 
 									<div class="self-end flex space-x-1 mr-1 shrink-0">
+										<!-- TradeBerg Chart Capture Button -->
+										<ChartCaptureButton
+											on:capture={handleChartCapture}
+											on:error={handleChartCaptureError}
+											disabled={generating}
+											size="md"
+											variant="ghost"
+										/>
+										
 										{#if (!history?.currentId || history.messages[history.currentId]?.done == true) && ($_user?.role === 'admin' || ($_user?.permissions?.chat?.stt ?? true))}
 											<!-- {$i18n.t('Record voice')} -->
 											<Tooltip content={$i18n.t('Dictate')}>

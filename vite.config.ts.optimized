@@ -1,0 +1,50 @@
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+	plugins: [sveltekit()],
+	
+	// Optimize build performance
+	build: {
+		// Increase chunk size warning limit
+		chunkSizeWarningLimit: 2000,
+		
+		// Optimize chunking
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// Split vendor chunks
+					'vendor-svelte': ['svelte', '@sveltejs/kit'],
+					'vendor-ui': ['@xyflow/svelte', 'paneforge'],
+					'vendor-utils': ['yaml', 'marked']
+				}
+			}
+		},
+		
+		// Reduce memory usage
+		minify: 'esbuild',
+		sourcemap: false
+	},
+	
+	// Optimize dev server
+	server: {
+		host: true,
+		port: 5173,
+		strictPort: false,
+		// Reduce memory usage in dev
+		watch: {
+			ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**']
+		}
+	},
+	
+	// Optimize dependencies
+	optimizeDeps: {
+		include: ['svelte', '@sveltejs/kit'],
+		exclude: ['@xyflow/svelte']
+	},
+	
+	// Reduce memory pressure
+	resolve: {
+		dedupe: ['svelte']
+	}
+});

@@ -14,7 +14,13 @@
 	let html: string | null = null;
 
 	$: if (token.type === 'html' && token?.text) {
-		html = DOMPurify.sanitize(token.text);
+		// Configure DOMPurify to allow Binance card elements
+		const config = {
+			ADD_TAGS: ['div', 'span', 'h3'],
+			ADD_ATTR: ['class', 'style', 'data-animate'],
+			ALLOW_DATA_ATTR: true
+		};
+		html = DOMPurify.sanitize(token.text, config);
 	} else {
 		html = null;
 	}
@@ -121,6 +127,9 @@
 		{/if}
 	{:else if token.text.includes(`<source_id`)}
 		<Source {id} {token} onClick={onSourceClick} />
+	{:else if html && html.includes('binance-live-card')}
+		<!-- Render Binance live data card with full HTML -->
+		{@html html}
 	{:else}
 		{@const br = token.text.match(/<br\s*\/?>/)}
 		{#if br}
