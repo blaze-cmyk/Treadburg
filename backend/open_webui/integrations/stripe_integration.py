@@ -74,7 +74,7 @@ class StripeClient:
     # CUSTOMER MANAGEMENT
     # ==========================================
     
-    async def create_customer(
+    def create_customer(
         self,
         email: str,
         name: Optional[str] = None,
@@ -92,7 +92,7 @@ class StripeClient:
             log.error(f"Error creating customer: {e}")
             return {"success": False, "error": str(e)}
     
-    async def get_customer(self, customer_id: str) -> Optional[Dict]:
+    def get_customer(self, customer_id: str) -> Optional[Dict]:
         """Get customer details"""
         try:
             customer = stripe.Customer.retrieve(customer_id)
@@ -101,7 +101,7 @@ class StripeClient:
             log.error(f"Error getting customer: {e}")
             return None
     
-    async def update_customer(
+    def update_customer(
         self,
         customer_id: str,
         **kwargs
@@ -114,7 +114,7 @@ class StripeClient:
             log.error(f"Error updating customer: {e}")
             return {"success": False, "error": str(e)}
     
-    async def list_customers(
+    def list_customers(
         self,
         limit: int = 10,
         email: Optional[str] = None
@@ -135,7 +135,7 @@ class StripeClient:
     # PRODUCT & PRICE MANAGEMENT
     # ==========================================
     
-    async def create_product(
+    def create_product(
         self,
         name: str,
         description: Optional[str] = None,
@@ -153,7 +153,7 @@ class StripeClient:
             log.error(f"Error creating product: {e}")
             return {"success": False, "error": str(e)}
     
-    async def create_price(
+    def create_price(
         self,
         product_id: str,
         unit_amount: int,
@@ -177,7 +177,7 @@ class StripeClient:
             log.error(f"Error creating price: {e}")
             return {"success": False, "error": str(e)}
     
-    async def list_products(self, limit: int = 10) -> List[Dict]:
+    def list_products(self, limit: int = 10) -> List[Dict]:
         """List products"""
         try:
             products = stripe.Product.list(limit=limit)
@@ -186,7 +186,7 @@ class StripeClient:
             log.error(f"Error listing products: {e}")
             return []
     
-    async def list_prices(
+    def list_prices(
         self,
         product_id: Optional[str] = None,
         limit: int = 10
@@ -207,7 +207,7 @@ class StripeClient:
     # SUBSCRIPTION MANAGEMENT
     # ==========================================
     
-    async def create_subscription(
+    def create_subscription(
         self,
         customer_id: str,
         price_id: str,
@@ -225,7 +225,7 @@ class StripeClient:
             log.error(f"Error creating subscription: {e}")
             return {"success": False, "error": str(e)}
     
-    async def get_subscription(self, subscription_id: str) -> Optional[Dict]:
+    def get_subscription(self, subscription_id: str) -> Optional[Dict]:
         """Get subscription details"""
         try:
             subscription = stripe.Subscription.retrieve(subscription_id)
@@ -234,7 +234,7 @@ class StripeClient:
             log.error(f"Error getting subscription: {e}")
             return None
     
-    async def update_subscription(
+    def update_subscription(
         self,
         subscription_id: str,
         **kwargs
@@ -247,7 +247,7 @@ class StripeClient:
             log.error(f"Error updating subscription: {e}")
             return {"success": False, "error": str(e)}
     
-    async def cancel_subscription(
+    def cancel_subscription(
         self,
         subscription_id: str,
         at_period_end: bool = True
@@ -267,7 +267,7 @@ class StripeClient:
             log.error(f"Error canceling subscription: {e}")
             return {"success": False, "error": str(e)}
     
-    async def list_subscriptions(
+    def list_subscriptions(
         self,
         customer_id: Optional[str] = None,
         status: Optional[str] = None,
@@ -291,7 +291,7 @@ class StripeClient:
     # PAYMENT INTENT & CHECKOUT
     # ==========================================
     
-    async def create_payment_intent(
+    def create_payment_intent(
         self,
         amount: int,
         currency: str = "usd",
@@ -315,7 +315,7 @@ class StripeClient:
             log.error(f"Error creating payment intent: {e}")
             return {"success": False, "error": str(e)}
     
-    async def create_checkout_session(
+    def create_checkout_session(
         self,
         success_url: str,
         cancel_url: str,
@@ -372,7 +372,7 @@ class StripeClient:
     # INVOICE MANAGEMENT
     # ==========================================
     
-    async def create_invoice(
+    def create_invoice(
         self,
         customer_id: str,
         auto_advance: bool = True
@@ -388,7 +388,7 @@ class StripeClient:
             log.error(f"Error creating invoice: {e}")
             return {"success": False, "error": str(e)}
     
-    async def finalize_invoice(self, invoice_id: str) -> Dict:
+    def finalize_invoice(self, invoice_id: str) -> Dict:
         """Finalize an invoice"""
         try:
             invoice = stripe.Invoice.finalize_invoice(invoice_id)
@@ -397,7 +397,7 @@ class StripeClient:
             log.error(f"Error finalizing invoice: {e}")
             return {"success": False, "error": str(e)}
     
-    async def list_invoices(
+    def list_invoices(
         self,
         customer_id: Optional[str] = None,
         limit: int = 10
@@ -439,7 +439,7 @@ class StripeClient:
             log.error(f"Webhook signature verification failed: {e}")
             return None
     
-    async def handle_webhook_event(self, event: Dict) -> Dict:
+    def handle_webhook_event(self, event: Dict) -> Dict:
         """Handle webhook event"""
         event_type = event.get("type")
         
@@ -458,35 +458,35 @@ class StripeClient:
         log.info(f"Unhandled webhook event type: {event_type}")
         return {"success": True, "message": "Event received"}
     
-    async def _handle_subscription_created(self, event: Dict) -> Dict:
+    def _handle_subscription_created(self, event: Dict) -> Dict:
         """Handle subscription created event"""
         subscription = event["data"]["object"]
         log.info(f"Subscription created: {subscription['id']}")
         # Add your custom logic here
         return {"success": True}
     
-    async def _handle_subscription_updated(self, event: Dict) -> Dict:
+    def _handle_subscription_updated(self, event: Dict) -> Dict:
         """Handle subscription updated event"""
         subscription = event["data"]["object"]
         log.info(f"Subscription updated: {subscription['id']}")
         # Add your custom logic here
         return {"success": True}
     
-    async def _handle_subscription_deleted(self, event: Dict) -> Dict:
+    def _handle_subscription_deleted(self, event: Dict) -> Dict:
         """Handle subscription deleted event"""
         subscription = event["data"]["object"]
         log.info(f"Subscription deleted: {subscription['id']}")
         # Add your custom logic here
         return {"success": True}
     
-    async def _handle_payment_succeeded(self, event: Dict) -> Dict:
+    def _handle_payment_succeeded(self, event: Dict) -> Dict:
         """Handle payment succeeded event"""
         invoice = event["data"]["object"]
         log.info(f"Payment succeeded for invoice: {invoice['id']}")
         # Add your custom logic here
         return {"success": True}
     
-    async def _handle_payment_failed(self, event: Dict) -> Dict:
+    def _handle_payment_failed(self, event: Dict) -> Dict:
         """Handle payment failed event"""
         invoice = event["data"]["object"]
         log.warning(f"Payment failed for invoice: {invoice['id']}")

@@ -204,7 +204,7 @@ async def purchase_credits(
         stripe_customer_id = user_response.data[0].get('stripe_customer_id')
         if not stripe_customer_id:
             # Create Stripe customer
-            customer_result = await stripe_client.create_customer(
+            customer_result = stripe_client.create_customer(
                 email=user.get('email'),
                 name=user.get('full_name') or user.get('email'),
                 metadata={'user_id': user['id']}
@@ -229,7 +229,7 @@ async def purchase_credits(
         payment_id = payment_response.data[0]['id']
         
         # Create Stripe checkout session
-        checkout_result = await stripe_client.create_checkout_session(
+        checkout_result = stripe_client.create_checkout_session(
             customer_id=stripe_customer_id,
             amount=int(purchase.amount * 100),  # Convert to cents
             currency='usd',
