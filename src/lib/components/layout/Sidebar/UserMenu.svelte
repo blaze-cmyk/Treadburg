@@ -171,7 +171,7 @@
 							{/if}
 						</div>
 					{/if}
-				</div>
+				</button>
 			{:else if loadingProfile}
 				<div class="px-3 py-3 mb-1 text-center text-sm text-gray-500">
 					Loading profile...
