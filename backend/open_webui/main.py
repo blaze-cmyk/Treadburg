@@ -97,6 +97,7 @@ from open_webui.routers import (
     utils,
     scim,
     integrations,
+    user_management,
 )
 from open_webui.routers.tradeberg import router as tradeberg_router
 from open_webui.routers.tradeberg import (
@@ -1710,6 +1711,9 @@ app.include_router(utils.router, prefix="/api/v1/utils", tags=["utils"])
 
 # Supabase & Stripe Integrations
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
+
+# User Management (Credits, Payments, Subscriptions)
+app.include_router(user_management.router, prefix="/api/user-management", tags=["user-management"])
 
 # SCIM 2.0 API for identity management
 if SCIM_ENABLED:
