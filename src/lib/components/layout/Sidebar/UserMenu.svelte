@@ -49,8 +49,21 @@
 	
 	const getUserProfile = async () => {
 		loadingProfile = true;
+		
+		// Always use fallback from $user store first
+		if ($user) {
+			userProfile = {
+				email: $user.email,
+				username: $user.name,
+				full_name: $user.name,
+				credits: 0,
+				subscription_tier: 'free',
+				subscription_status: 'inactive'
+			};
+		}
+		
+		// Then try to fetch from new API (will override if successful)
 		try {
-			// Skip if no token
 			if (!localStorage.token) {
 				loadingProfile = false;
 				return;
@@ -64,33 +77,12 @@
 			
 			if (response.ok) {
 				const data = await response.json();
+				// Override with real data from new system
 				userProfile = data.user;
-			} else if (response.status === 401) {
-				// User not authenticated with new system yet, use fallback data from $user store
-				if ($user) {
-					userProfile = {
-						email: $user.email,
-						username: $user.name,
-						full_name: $user.name,
-						credits: 0,
-						subscription_tier: 'free',
-						subscription_status: 'inactive'
-					};
-				}
 			}
 		} catch (error) {
 			console.error('Error fetching user profile:', error);
-			// Fallback to $user store data
-			if ($user) {
-				userProfile = {
-					email: $user.email,
-					username: $user.name,
-					full_name: $user.name,
-					credits: 0,
-					subscription_tier: 'free',
-					subscription_status: 'inactive'
-				};
-			}
+			// Keep fallback data from $user store
 		} finally {
 			loadingProfile = false;
 		}
