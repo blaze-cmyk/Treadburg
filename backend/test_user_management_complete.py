@@ -173,9 +173,22 @@ try:
     
     # Check if admin panel file exists
     import os
-    admin_panel_path = "src/routes/admin/+page.svelte"
+    from pathlib import Path
     
-    if os.path.exists(admin_panel_path):
+    # Try multiple possible paths
+    possible_paths = [
+        "../src/routes/admin/+page.svelte",
+        "../../src/routes/admin/+page.svelte",
+        Path(__file__).parent.parent / "src" / "routes" / "admin" / "+page.svelte"
+    ]
+    
+    admin_panel_path = None
+    for path in possible_paths:
+        if os.path.exists(str(path)):
+            admin_panel_path = str(path)
+            break
+    
+    if admin_panel_path:
         with open(admin_panel_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
@@ -323,8 +336,8 @@ try:
     required_files = {
         'Database Migration': 'supabase/migrations/002_user_management_system.sql',
         'API Router': 'open_webui/routers/user_management.py',
-        'Admin Panel': 'src/routes/admin/+page.svelte',
-        'Documentation': 'USER_MANAGEMENT_IMPLEMENTATION.md'
+        'Admin Panel': '../src/routes/admin/+page.svelte',
+        'Documentation': '../USER_MANAGEMENT_IMPLEMENTATION.md'
     }
     
     print(f"✅ Required files:")
