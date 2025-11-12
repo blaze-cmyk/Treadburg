@@ -453,7 +453,7 @@ class StripeClient:
         
         handler = handlers.get(event_type)
         if handler:
-            return await handler(event)
+            return handler(event)
         
         log.info(f"Unhandled webhook event type: {event_type}")
         return {"success": True, "message": "Event received"}
