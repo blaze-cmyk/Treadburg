@@ -175,16 +175,38 @@ async def purchase_credits(
 ):
     """Create Stripe checkout session for credit purchase"""
     try:
-        stripe_client = get_stripe_client()
         supabase = get_supabase_client()
+        stripe_client = get_stripe_client()
+        
+        # Get or create user in Supabase
+        user_response = supabase.client.table('users').select('*').eq('auth_user_id', user['id']).execute()
+        
+        if not user_response.data:
+            # Auto-create user in Supabase if doesn't exist
+            log.info(f"Creating user in Supabase: {user.get('email')}")
+            new_user_data = {
+                'auth_user_id': user['id'],
+                'email': user.get('email'),
+                'username': user.get('name'),
+                'full_name': user.get('name'),
+                'avatar_url': user.get('profile_image_url'),
+                'credits': 0,
+                'subscription_tier': 'free',
+                'subscription_status': 'inactive',
+                'is_verified': True
+            }
+            user_response = supabase.client.table('users').insert(new_user_data).execute()
+            
+            if not user_response.data:
+                raise HTTPException(status_code=500, detail="Failed to create user in database")
         
         # Ensure user has Stripe customer ID
-        stripe_customer_id = user.get('stripe_customer_id')
+        stripe_customer_id = user_response.data[0].get('stripe_customer_id')
         if not stripe_customer_id:
             # Create Stripe customer
             customer_result = await stripe_client.create_customer(
-                email=user['email'],
-                name=user.get('full_name') or user['email'],
+                email=user.get('email'),
+                name=user.get('full_name') or user.get('email'),
                 metadata={'user_id': user['id']}
             )
             
