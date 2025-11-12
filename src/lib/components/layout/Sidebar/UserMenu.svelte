@@ -125,7 +125,13 @@
 		>
 			<!-- User Profile Section -->
 			{#if userProfile}
-				<div class="px-3 py-3 mb-1 border-b border-gray-100 dark:border-gray-800">
+				<button
+					on:click={() => {
+						show = false;
+						goto('/profile');
+					}}
+					class="w-full text-left px-3 py-3 mb-1 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+				>
 					<div class="flex items-center gap-3 mb-2">
 						{#if userProfile.avatar_url}
 							<img src={userProfile.avatar_url} alt="Avatar" class="w-10 h-10 rounded-full" />
