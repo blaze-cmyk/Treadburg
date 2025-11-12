@@ -317,16 +317,18 @@ class StripeClient:
     
     async def create_checkout_session(
         self,
-        price_id: str,
         success_url: str,
         cancel_url: str,
         customer_id: Optional[str] = None,
-        mode: str = "subscription"
+        price_id: Optional[str] = None,
+        amount: Optional[int] = None,
+        currency: str = "usd",
+        mode: str = "payment",
+        metadata: Optional[Dict] = None
     ) -> Dict:
-        """Create a Checkout session"""
+        """Create a Checkout session for one-time payment or subscription"""
         try:
             params = {
-                "line_items": [{"price": price_id, "quantity": 1}],
                 "mode": mode,
                 "success_url": success_url,
                 "cancel_url": cancel_url
@@ -335,10 +337,35 @@ class StripeClient:
             if customer_id:
                 params["customer"] = customer_id
             
+            if metadata:
+                params["metadata"] = metadata
+            
+            # For one-time payments with custom amount
+            if amount and mode == "payment":
+                params["line_items"] = [{
+                    "price_data": {
+                        "currency": currency,
+                        "unit_amount": amount,
+                        "product_data": {
+                            "name": "TradeBerg Credits",
+                            "description": f"Purchase {metadata.get('credits', 0)} credits" if metadata else "Credits purchase"
+                        }
+                    },
+                    "quantity": 1
+                }]
+            # For subscriptions with price_id
+            elif price_id:
+                params["line_items"] = [{"price": price_id, "quantity": 1}]
+            else:
+                raise ValueError("Either price_id or amount must be provided")
+            
             session = stripe.checkout.Session.create(**params)
             return {"success": True, "session": session}
         except stripe.error.StripeError as e:
             log.error(f"Error creating checkout session: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            log.error(f"Unexpected error creating checkout session: {e}")
             return {"success": False, "error": str(e)}
     
     # ==========================================
