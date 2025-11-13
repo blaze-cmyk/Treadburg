@@ -19,27 +19,27 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/api/chat/completions': {
-				target: 'http://localhost:8083',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
 				secure: false
 			},
 			'/api/v1/chat/completions': {
-				target: 'http://localhost:8083',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
 				secure: false
 			},
 			'/api/tradeberg/chat/completions': {
-				target: 'http://localhost:8083',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
 				secure: false
 			},
 			'/api/tradeberg/enhanced-chat': {
-				target: 'http://localhost:8082',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
 				secure: false
 			},
 			'/api': {
-				target: 'http://localhost:8081',
+				target: 'http://localhost:8080',
 				changeOrigin: true,
 				secure: false
 			}

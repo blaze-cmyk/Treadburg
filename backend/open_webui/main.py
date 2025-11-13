@@ -1236,8 +1236,12 @@ try:
     else:
         app.state.rf = None
 except Exception as e:
+    import traceback
     log.error(f"Error updating models: {e}")
-    pass
+    log.error(f"Traceback: {traceback.format_exc()}")
+    # Set default values to allow server to start
+    app.state.ef = None
+    app.state.rf = None
 
 
 app.state.EMBEDDING_FUNCTION = get_embedding_function(

@@ -175,6 +175,7 @@ async def purchase_credits(
 ):
     """Create Stripe checkout session for credit purchase"""
     try:
+        log.info(f"Purchase request: user={user.get('email')}, amount=${purchase.amount}, credits={purchase.credits}")
         supabase = get_supabase_client()
         stripe_client = get_stripe_client()
         
@@ -258,8 +259,12 @@ async def purchase_credits(
             "payment_id": payment_id
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"Error creating checkout: {e}")
+        import traceback
+        log.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/credits/use")
