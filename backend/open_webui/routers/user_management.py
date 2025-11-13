@@ -211,15 +211,16 @@ async def purchase_credits(
             )
             
             if customer_result['success']:
-                stripe_customer_id = customer_result['customer']['id']
+                stripe_customer_id = customer_result['customer'].id  # Access as attribute
                 # Update user with Stripe customer ID
                 supabase.client.table('users').update({
                     'stripe_customer_id': stripe_customer_id
-                }).eq('id', user['id']).execute()
+                }).eq('id', user_response.data[0]['id']).execute()  # Use correct user ID
         
         # Create payment record
+        supabase_user_id = user_response.data[0]['id']
         payment_data = {
-            'user_id': user['id'],
+            'user_id': supabase_user_id,  # Use Supabase user ID
             'amount': purchase.amount,
             'credits_purchased': purchase.credits,
             'status': 'pending',
@@ -227,8 +228,10 @@ async def purchase_credits(
         }
         payment_response = supabase.client.table('payments').insert(payment_data).execute()
         payment_id = payment_response.data[0]['id']
+        log.info(f"Created payment record {payment_id} for user {user.get('email')}")
         
         # Create Stripe checkout session
+        log.info(f"Creating Stripe checkout for user {user.get('email')}: ${purchase.amount} for {purchase.credits} credits")
         checkout_result = stripe_client.create_checkout_session(
             customer_id=stripe_customer_id,
             amount=int(purchase.amount * 100),  # Convert to cents
@@ -236,19 +239,22 @@ async def purchase_credits(
             success_url=purchase.success_url,
             cancel_url=purchase.cancel_url,
             metadata={
-                'user_id': user['id'],
+                'user_id': user_response.data[0]['id'],  # Use Supabase user ID
                 'payment_id': payment_id,
                 'credits': purchase.credits
             }
         )
         
         if not checkout_result['success']:
-            raise HTTPException(status_code=500, detail="Failed to create checkout session")
+            error_msg = checkout_result.get('error', 'Unknown error')
+            log.error(f"Stripe checkout failed: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to create checkout session: {error_msg}")
         
+        session = checkout_result['session']
         return {
             "success": True,
-            "checkout_url": checkout_result['session']['url'],
-            "session_id": checkout_result['session']['id'],
+            "checkout_url": session.url,  # Access as attribute, not dict
+            "session_id": session.id,     # Access as attribute, not dict
             "payment_id": payment_id
         }
         
