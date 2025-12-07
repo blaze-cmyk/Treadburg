@@ -30,7 +30,10 @@ async def chat_endpoint(request: ChatRequest):
             conversation_history=[msg.dict() for msg in request.conversation_history],
             model=request.model,
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
+            # Default to full analysis mode for the standalone bot API
+            mode="analysis",
+            context=None,
         )
         
         # Return structured response

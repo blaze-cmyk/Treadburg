@@ -1,1 +1,0 @@
-TRADEBERG: Quote is venue-specific. Which feed do you want: spot BTC-USD (Coinbase/Bitstamp), BTC-USDT (Binance), perpetual swaps (Binance/Bybit), or CME front future? Specify venue/pair and I’ll return the top-of-book and map nearby liquidity.

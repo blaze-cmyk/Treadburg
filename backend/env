@@ -1,0 +1,100 @@
+WEBUI_AUTH=False
+ENABLE_API_KEY=True
+
+# TradeBerg Backend Configuration
+WEBUI_NAME=TradeBerg
+
+# API Keys - Replace with your actual keys
+# OpenAI Configuration (REQUIRED - Get from: https://platform.openai.com/api-keys)
+OPENAI_API_KEY=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
+
+# Anthropic Claude (Optional)
+ANTHROPIC_API_KEY=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
+
+# Perplexity API (for enhanced market context analysis)
+PERPLEXITY_API_KEY=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
+
+# Google Gemini API (for AI chat responses)
+GEMINI_API_KEY=AIzaSyC2PKfhkmXl94eGzOh8u51-Wp4t-Xh47SE
+
+# Market Data APIs (REQUIRED for function calling)
+NANSEN_API_KEY=zoUZzFeRYucilTJprSMXBsvNHzVVTn2I
+
+# Model configuration
+OPENAI_API_BASE_URL=https://api.openai.com/v1
+DEFAULT_MODELS=gpt-4o,gpt-4,gpt-3.5-turbo
+ENABLE_OPENAI_API=true
+
+# Vision API for chart analysis
+ENABLE_VISION_API=true
+VISION_MODEL=gpt-4o
+
+# Nansen API for DeFi positions
+NANSEN_API_KEY=zoUZzFeRYucilTJprSMXBsvNHzVVTn2I
+NANSEN_API_BASE_URL=https://api.nansen.ai/api/v1
+
+# Coinalyze API for trading data
+COINALYZE_API_KEY=d5b064a-fce5-4095-a848-16c43804c6d0
+COINALYZE_API_BASE_URL=https://api.coinalyze.net/v1
+
+# Alternative: Anthropic Claude
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Alternative: Local Ollama (free)
+# OLLAMA_BASE_URL=http://localhost:11434
+
+# CORS Configuration
+CORS_ALLOW_ORIGIN=http://localhost:5173
+
+# Disable analytics
+SCARF_NO_ANALYTICS=true
+
+# WebUI Configuration (auth disabled for easy access)
+WEBUI_NAME=TradeBerg
+
+# NextAuth Configuration
+NEXTAUTH_SECRET=jAamxBTZfv5kQH9zFen8YX6Gbr3dh0Ji
+NEXTAUTH_URL=http://localhost:3000
+
+# Database (Supabase PostgreSQL)
+# Direct connection port 5432 (may timeout on some networks)
+DATABASE_URL=postgresql://postgres.pcxscejarxztezfeucgs:Supabase%4012@db.pcxscejarxztezfeucgs.supabase.co:5432/postgres?sslmode=require&connect_timeout=30
+
+# Use Supabase REST API instead of direct PostgreSQL (bypasses firewall issues)
+USE_SUPABASE_REST=true
+
+# Backend API
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8080/api
+
+# Configured with live credentials
+
+# ============================================
+# SUPABASE CONFIGURATION
+# ============================================
+SUPABASE_URL=https://pcxscejarxztezfeucgs.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjeHNjZWphcnh6dGV6ZmV1Y2dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NTMwOTcsImV4cCI6MjA3ODUyOTA5N30.tMERXgpNtF88ywJhH0t62SAudTk4iYu_Xv0xgGg-Ll0
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjeHNjZWphcnh6dGV6ZmV1Y2dzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Mjk1MzA5NywiZXhwIjoyMDc4NTI5MDk3fQ.d3pi3WWOFppx80QAw8x-En4LPPmRADK1c07U6P6Bw_U
+
+# ============================================
+# STRIPE CONFIGURATION
+# ============================================
+STRIPE_SECRET_KEY=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
+STRIPE_PUBLISHABLE_KEY=pk_live_51PHqTQKGS1cHUXXStuI96OXZz47zXQzFOoo1KqjixV7fc2Pz3HuJVwTarOGe6DWuThprbgPHGcWYrtd8BplEyaro00JyOe8IWi
+
+# Stripe Price IDs (Recurring Subscriptions - Auto-generated)
+STRIPE_PRICE_ID_PRO_MONTHLY=price_1SbPgJKGS1cHUXXS19wme2HK
+STRIPE_PRICE_ID_PRO_YEARLY=price_1SbPgJKGS1cHUXXSv13cYua8
+STRIPE_PRICE_ID_MAX_MONTHLY=price_1SbPgKKGS1cHUXXSv8VsWsvG
+STRIPE_PRICE_ID_MAX_YEARLY=price_1SbPgKKGS1cHUXXSjBfAy54J
+
+# Stripe Webhook Secret (for local testing - get from Stripe Dashboard)
+STRIPE_WEBHOOK_SECRET=
+
+# ============================================
+# MCP SERVER SETTINGS
+# ============================================
+SUPABASE_MCP_PORT=3001
+STRIPE_MCP_PORT=3002
+ENABLE_SUPABASE_MCP=true
+ENABLE_STRIPE_MCP=true
+

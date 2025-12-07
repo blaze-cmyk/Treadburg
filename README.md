@@ -1,270 +1,379 @@
-# Open WebUI 👋
+# 🚀 TradeBerg
 
-![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
-![GitHub forks](https://img.shields.io/github/forks/open-webui/open-webui?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/open-webui/open-webui?style=social)
-![GitHub repo size](https://img.shields.io/github/repo-size/open-webui/open-webui)
-![GitHub language count](https://img.shields.io/github/languages/count/open-webui/open-webui)
-![GitHub top language](https://img.shields.io/github/languages/top/open-webui/open-webui)
-![GitHub last commit](https://img.shields.io/github/last-commit/open-webui/open-webui?color=red)
-[![Discord](https://img.shields.io/badge/Discord-Open_WebUI-blue?logo=discord&logoColor=white)](https://discord.gg/5rJgQTnV4s)
-[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/tjbck)
+**AI-Powered Trading & Financial Analysis Platform**
 
-**Open WebUI is an [extensible](https://docs.openwebui.com/features/plugin/), feature-rich, and user-friendly self-hosted AI platform designed to operate entirely offline.** It supports various LLM runners like **Ollama** and **OpenAI-compatible APIs**, with **built-in inference engine** for RAG, making it a **powerful AI deployment solution**.
-
-Passionate about open-source AI? [Join our team →](https://careers.openwebui.com/)
-
-![Open WebUI Demo](./demo.gif)
-
-> [!TIP]  
-> **Looking for an [Enterprise Plan](https://docs.openwebui.com/enterprise)?** – **[Speak with Our Sales Team Today!](mailto:sales@openwebui.com)**
->
-> Get **enhanced capabilities**, including **custom theming and branding**, **Service Level Agreement (SLA) support**, **Long-Term Support (LTS) versions**, and **more!**
-
-For more information, be sure to check out our [Open WebUI Documentation](https://docs.openwebui.com/).
-
-## Key Features of Open WebUI ⭐
-
-- 🚀 **Effortless Setup**: Install seamlessly using Docker or Kubernetes (kubectl, kustomize or helm) for a hassle-free experience with support for both `:ollama` and `:cuda` tagged images.
-
-- 🤝 **Ollama/OpenAI API Integration**: Effortlessly integrate OpenAI-compatible APIs for versatile conversations alongside Ollama models. Customize the OpenAI API URL to link with **LMStudio, GroqCloud, Mistral, OpenRouter, and more**.
-
-- 🛡️ **Granular Permissions and User Groups**: By allowing administrators to create detailed user roles and permissions, we ensure a secure user environment. This granularity not only enhances security but also allows for customized user experiences, fostering a sense of ownership and responsibility amongst users.
-
-- 🔄 **SCIM 2.0 Support**: Enterprise-grade user and group provisioning through SCIM 2.0 protocol, enabling seamless integration with identity providers like Okta, Azure AD, and Google Workspace for automated user lifecycle management.
-
-- 📱 **Responsive Design**: Enjoy a seamless experience across Desktop PC, Laptop, and Mobile devices.
-
-- 📱 **Progressive Web App (PWA) for Mobile**: Enjoy a native app-like experience on your mobile device with our PWA, providing offline access on localhost and a seamless user interface.
-
-- ✒️🔢 **Full Markdown and LaTeX Support**: Elevate your LLM experience with comprehensive Markdown and LaTeX capabilities for enriched interaction.
-
-- 🎤📹 **Hands-Free Voice/Video Call**: Experience seamless communication with integrated hands-free voice and video call features, allowing for a more dynamic and interactive chat environment.
-
-- 🛠️ **Model Builder**: Easily create Ollama models via the Web UI. Create and add custom characters/agents, customize chat elements, and import models effortlessly through [Open WebUI Community](https://openwebui.com/) integration.
-
-- 🐍 **Native Python Function Calling Tool**: Enhance your LLMs with built-in code editor support in the tools workspace. Bring Your Own Function (BYOF) by simply adding your pure Python functions, enabling seamless integration with LLMs.
-
-- 📚 **Local RAG Integration**: Dive into the future of chat interactions with groundbreaking Retrieval Augmented Generation (RAG) support. This feature seamlessly integrates document interactions into your chat experience. You can load documents directly into the chat or add files to your document library, effortlessly accessing them using the `#` command before a query.
-
-- 🔍 **Web Search for RAG**: Perform web searches using providers like `SearXNG`, `Google PSE`, `Brave Search`, `serpstack`, `serper`, `Serply`, `DuckDuckGo`, `TavilySearch`, `SearchApi` and `Bing` and inject the results directly into your chat experience.
-
-- 🌐 **Web Browsing Capability**: Seamlessly integrate websites into your chat experience using the `#` command followed by a URL. This feature allows you to incorporate web content directly into your conversations, enhancing the richness and depth of your interactions.
-
-- 🎨 **Image Generation Integration**: Seamlessly incorporate image generation capabilities using options such as AUTOMATIC1111 API or ComfyUI (local), and OpenAI's DALL-E (external), enriching your chat experience with dynamic visual content.
-
-- ⚙️ **Many Models Conversations**: Effortlessly engage with various models simultaneously, harnessing their unique strengths for optimal responses. Enhance your experience by leveraging a diverse set of models in parallel.
-
-- 🔐 **Role-Based Access Control (RBAC)**: Ensure secure access with restricted permissions; only authorized individuals can access your Ollama, and exclusive model creation/pulling rights are reserved for administrators.
-
-- 🌐🌍 **Multilingual Support**: Experience Open WebUI in your preferred language with our internationalization (i18n) support. Join us in expanding our supported languages! We're actively seeking contributors!
-
-- 🧩 **Pipelines, Open WebUI Plugin Support**: Seamlessly integrate custom logic and Python libraries into Open WebUI using [Pipelines Plugin Framework](https://github.com/open-webui/pipelines). Launch your Pipelines instance, set the OpenAI URL to the Pipelines URL, and explore endless possibilities. [Examples](https://github.com/open-webui/pipelines/tree/main/examples) include **Function Calling**, User **Rate Limiting** to control access, **Usage Monitoring** with tools like Langfuse, **Live Translation with LibreTranslate** for multilingual support, **Toxic Message Filtering** and much more.
-
-- 🌟 **Continuous Updates**: We are committed to improving Open WebUI with regular updates, fixes, and new features.
-
-Want to learn more about Open WebUI's features? Check out our [Open WebUI documentation](https://docs.openwebui.com/features) for a comprehensive overview!
-
-## Sponsors 🙌
-
-#### Emerald
-
-<table>
-  <!-- <tr>
-    <td>
-      <a href="https://n8n.io/" target="_blank">
-        <img src="https://docs.openwebui.com/sponsors/logos/n8n.png" alt="n8n" style="width: 8rem; height: 8rem; border-radius: .75rem;" />
-      </a>
-    </td>
-    <td>
-      <a href="https://n8n.io/">n8n</a> • Does your interface have a backend yet?<br>Try <a href="https://n8n.io/">n8n</a>
-    </td>
-  </tr> -->
-  <tr>
-    <td>
-      <a href="https://tailscale.com/blog/self-host-a-local-ai-stack/?utm_source=OpenWebUI&utm_medium=paid-ad-placement&utm_campaign=OpenWebUI-Docs" target="_blank">
-        <img src="https://docs.openwebui.com/sponsors/logos/tailscale.png" alt="Tailscale" style="width: 8rem; height: 8rem; border-radius: .75rem;" />
-      </a>
-    </td>
-    <td>
-      <a href="https://tailscale.com/blog/self-host-a-local-ai-stack/?utm_source=OpenWebUI&utm_medium=paid-ad-placement&utm_campaign=OpenWebUI-Docs">Tailscale</a> • Connect self-hosted AI to any device with Tailscale
-    </td>
-  </tr>
-   <tr>
-    <td>
-      <a href="https://warp.dev/open-webui" target="_blank">
-        <img src="https://docs.openwebui.com/sponsors/logos/warp.png" alt="Warp" style="width: 8rem; height: 8rem; border-radius: .75rem;" />
-      </a>
-    </td>
-    <td>
-      <a href="https://warp.dev/open-webui">Warp</a> • The intelligent terminal for developers
-    </td>
-  </tr>
-</table>
+TradeBerg is an institutional-grade AI trading assistant that combines real-time market data, AI-powered analysis, and professional financial reporting. Built with Next.js 15 and FastAPI, it integrates multiple AI providers with live market data to provide comprehensive trading insights.
 
 ---
 
-We are incredibly grateful for the generous support of our sponsors. Their contributions help us to maintain and improve our project, ensuring we can continue to deliver quality work to our community. Thank you!
+## ✨ Key Features
 
-## How to Install 🚀
-
-### Installation via Python pip 🐍
-
-Open WebUI can be installed using pip, the Python package installer. Before proceeding, ensure you're using **Python 3.11** to avoid compatibility issues.
-
-1. **Install Open WebUI**:
-   Open your terminal and run the following command to install Open WebUI:
-
-   ```bash
-   pip install open-webui
-   ```
-
-2. **Running Open WebUI**:
-   After installation, you can start Open WebUI by executing:
-
-   ```bash
-   open-webui serve
-   ```
-
-This will start the Open WebUI server, which you can access at [http://localhost:8080](http://localhost:8080)
-
-### Quick Start with Docker 🐳
-
-> [!NOTE]  
-> Please note that for certain Docker environments, additional configurations might be needed. If you encounter any connection issues, our detailed guide on [Open WebUI Documentation](https://docs.openwebui.com/) is ready to assist you.
-
-> [!WARNING]
-> When using Docker to install Open WebUI, make sure to include the `-v open-webui:/app/backend/data` in your Docker command. This step is crucial as it ensures your database is properly mounted and prevents any loss of data.
-
-> [!TIP]  
-> If you wish to utilize Open WebUI with Ollama included or CUDA acceleration, we recommend utilizing our official images tagged with either `:cuda` or `:ollama`. To enable CUDA, you must install the [Nvidia CUDA container toolkit](https://docs.nvidia.com/dgx/nvidia-container-runtime-upgrade/) on your Linux/WSL system.
-
-### Installation with Default Configuration
-
-- **If Ollama is on your computer**, use this command:
-
-  ```bash
-  docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-  ```
-
-- **If Ollama is on a Different Server**, use this command:
-
-  To connect to Ollama on another server, change the `OLLAMA_BASE_URL` to the server's URL:
-
-  ```bash
-  docker run -d -p 3000:8080 -e OLLAMA_BASE_URL=https://example.com -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-  ```
-
-- **To run Open WebUI with Nvidia GPU support**, use this command:
-
-  ```bash
-  docker run -d -p 3000:8080 --gpus all --add-host=host.docker.internal:host-gateway -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:cuda
-  ```
-
-### Installation for OpenAI API Usage Only
-
-- **If you're only using OpenAI API**, use this command:
-
-  ```bash
-  docker run -d -p 3000:8080 -e OPENAI_API_KEY=your_secret_key -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-  ```
-
-### Installing Open WebUI with Bundled Ollama Support
-
-This installation method uses a single container image that bundles Open WebUI with Ollama, allowing for a streamlined setup via a single command. Choose the appropriate command based on your hardware setup:
-
-- **With GPU Support**:
-  Utilize GPU resources by running the following command:
-
-  ```bash
-  docker run -d -p 3000:8080 --gpus=all -v ollama:/root/.ollama -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama
-  ```
-
-- **For CPU Only**:
-  If you're not using a GPU, use this command instead:
-
-  ```bash
-  docker run -d -p 3000:8080 -v ollama:/root/.ollama -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:ollama
-  ```
-
-Both commands facilitate a built-in, hassle-free installation of both Open WebUI and Ollama, ensuring that you can get everything up and running swiftly.
-
-After installation, you can access Open WebUI at [http://localhost:3000](http://localhost:3000). Enjoy! 😄
-
-### Other Installation Methods
-
-We offer various installation alternatives, including non-Docker native installation methods, Docker Compose, Kustomize, and Helm. Visit our [Open WebUI Documentation](https://docs.openwebui.com/getting-started/) or join our [Discord community](https://discord.gg/5rJgQTnV4s) for comprehensive guidance.
-
-Look at the [Local Development Guide](https://docs.openwebui.com/getting-started/advanced-topics/development) for instructions on setting up a local development environment.
-
-### Troubleshooting
-
-Encountering connection issues? Our [Open WebUI Documentation](https://docs.openwebui.com/troubleshooting/) has got you covered. For further assistance and to join our vibrant community, visit the [Open WebUI Discord](https://discord.gg/5rJgQTnV4s).
-
-#### Open WebUI: Server Connection Error
-
-If you're experiencing connection issues, it’s often due to the WebUI docker container not being able to reach the Ollama server at 127.0.0.1:11434 (host.docker.internal:11434) inside the container . Use the `--network=host` flag in your docker command to resolve this. Note that the port changes from 3000 to 8080, resulting in the link: `http://localhost:8080`.
-
-**Example Docker Command**:
-
-```bash
-docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui --restart always ghcr.io/open-webui/open-webui:main
-```
-
-### Keeping Your Docker Installation Up-to-Date
-
-In case you want to update your local Docker installation to the latest version, you can do it with [Watchtower](https://containrrr.dev/watchtower/):
-
-```bash
-docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower --run-once open-webui
-```
-
-In the last part of the command, replace `open-webui` with your container name if it is different.
-
-Check our Updating Guide available in our [Open WebUI Documentation](https://docs.openwebui.com/getting-started/updating).
-
-### Using the Dev Branch 🌙
-
-> [!WARNING]
-> The `:dev` branch contains the latest unstable features and changes. Use it at your own risk as it may have bugs or incomplete features.
-
-If you want to try out the latest bleeding-edge features and are okay with occasional instability, you can use the `:dev` tag like this:
-
-```bash
-docker run -d -p 3000:8080 -v open-webui:/app/backend/data --name open-webui --add-host=host.docker.internal:host-gateway --restart always ghcr.io/open-webui/open-webui:dev
-```
-
-### Offline Mode
-
-If you are running Open WebUI in an offline environment, you can set the `HF_HUB_OFFLINE` environment variable to `1` to prevent attempts to download models from the internet.
-
-```bash
-export HF_HUB_OFFLINE=1
-```
-
-## What's Next? 🌟
-
-Discover upcoming features on our roadmap in the [Open WebUI Documentation](https://docs.openwebui.com/roadmap/).
-
-## License 📜
-
-This project contains code under multiple licenses. The current codebase includes components licensed under the Open WebUI License with an additional requirement to preserve the "Open WebUI" branding, as well as prior contributions under their respective original licenses. For a detailed record of license changes and the applicable terms for each section of the code, please refer to [LICENSE_HISTORY](./LICENSE_HISTORY). For complete and updated licensing details, please see the [LICENSE](./LICENSE) and [LICENSE_HISTORY](./LICENSE_HISTORY) files.
-
-## Support 💬
-
-If you have any questions, suggestions, or need assistance, please open an issue or join our
-[Open WebUI Discord community](https://discord.gg/5rJgQTnV4s) to connect with us! 🤝
-
-## Star History
-
-<a href="https://star-history.com/#open-webui/open-webui&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=open-webui/open-webui&type=Date" />
-  </picture>
-</a>
+- 🤖 **AI-Powered Analysis** - Gemini 2.5 Flash + Perplexity API for market insights
+- 📊 **Real-Time Market Data** - Live cryptocurrency prices via Binance API
+- 📈 **Interactive Charts** - TradingView integration with technical indicators
+- 💼 **SEC Filing Analysis** - Automated 10-K/10-Q analysis for fundamental research
+- 💬 **Streaming Chat** - Real-time AI responses with citations
+- 🖼️ **Multi-Modal Support** - Text and image analysis capabilities
+- 📉 **Trading Zones** - Support/resistance detection and analysis
+- 🎯 **Smart Intent Detection** - Automatic routing between chat and trading modes
 
 ---
 
-Created by [Timothy Jaeryang Baek](https://github.com/tjbck) - Let's make Open WebUI even more amazing together! 💪
+## 🏗️ Tech Stack
+
+### Frontend
+- **Framework**: Next.js 15.5.3 with Turbopack
+- **UI**: React 19, TailwindCSS 4, Framer Motion
+- **Charts**: Lightweight Charts, Recharts, AG Grid
+- **Auth**: NextAuth.js with JWT
+- **Database**: Prisma (PostgreSQL)
+
+### Backend
+- **Framework**: FastAPI + Uvicorn
+- **AI**: Gemini, Perplexity, OpenAI (optional)
+- **Data**: Binance API, SEC EDGAR, CCXT
+- **Database**: SQLite (dev) / PostgreSQL (prod)
+- **ORM**: SQLAlchemy + Peewee
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Node.js** 20.x+
+- **Python** 3.11+
+- **API Keys**: Gemini, Perplexity (required)
+
+### Option 1: One-Command Startup (Windows)
+
+```bash
+cd C:\Users\hariom\Downloads\tradebergs
+start-all.bat
+```
+
+Then open: **http://localhost:3000**
+
+### Option 2: Manual Startup
+
+#### 1. Start Backend (Terminal 1)
+
+```bash
+cd backend
+
+# Create and activate virtual environment
+python -m venv .runvenv
+.runvenv\Scripts\activate  # Windows
+# source .runvenv/bin/activate  # macOS/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your API keys
+
+# Start server
+python -m uvicorn app:app --host 0.0.0.0 --port 8080 --reload
+```
+
+**Backend will run on**: http://localhost:8080
+
+#### 2. Start Frontend (Terminal 2)
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment
+# Create .env.local with:
+# NEXT_PUBLIC_API_URL=http://localhost:8080/api
+
+# Start development server
+npm run dev
+```
+
+**Frontend will run on**: http://localhost:3000
+
+---
+
+## ⚙️ Configuration
+
+### Backend Environment Variables
+
+Create `backend/.env`:
+
+```env
+# AI APIs (Required)
+GEMINI_API_KEY=your_gemini_key_here
+PERPLEXITY_API_KEY=your_perplexity_key_here
+
+# AI APIs (Optional)
+OPENAI_API_KEY=your_openai_key_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+
+# Market Data APIs (Optional)
+NANSEN_API_KEY=your_nansen_key_here
+COINALYZE_API_KEY=your_coinalyze_key_here
+
+# Database (Production)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+
+# Supabase (Optional)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_key
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8080
+DEBUG=False
+ENVIRONMENT=development
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+### Frontend Environment Variables
+
+Create `frontend/.env.local`:
+
+```env
+# Backend API
+NEXT_PUBLIC_API_URL=http://localhost:8080/api
+
+# NextAuth
+NEXTAUTH_SECRET=your_secret_here
+NEXTAUTH_URL=http://localhost:3000
+
+# Database (if using Prisma)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+```
+
+---
+
+## 📁 Project Structure
+
+```
+tradebergs/
+├── backend/                 # FastAPI backend
+│   ├── app.py              # Main application
+│   ├── config.py           # Configuration
+│   ├── database.py         # Database setup
+│   ├── routes/             # API endpoints
+│   │   ├── chat.py         # Chat API (streaming)
+│   │   ├── trading.py      # Trading history/zones
+│   │   ├── integrations.py # External integrations
+│   │   └── sec.py          # SEC filing endpoints
+│   ├── services/           # Business logic
+│   │   ├── gemini_service.py
+│   │   ├── perplexity_service.py
+│   │   ├── chat_service.py
+│   │   ├── binance_service.py
+│   │   ├── market_data_service.py
+│   │   └── sec_client.py
+│   ├── core/               # Core functionality
+│   │   ├── constants.py    # TradeBerg doctrine
+│   │   ├── intent_router.py
+│   │   ├── output_engine.py
+│   │   └── agents/
+│   └── models/             # Database models
+│
+├── frontend/               # Next.js frontend
+│   ├── src/
+│   │   ├── app/           # Next.js app router
+│   │   │   ├── (auth)/    # Auth pages
+│   │   │   ├── (main)/    # Main app
+│   │   │   │   ├── c/[chatId]/  # Chat interface
+│   │   │   │   ├── trade/       # Trading view
+│   │   │   │   └── charts/      # Chart views
+│   │   │   └── api/       # API routes (proxy)
+│   │   ├── components/    # React components
+│   │   │   ├── chat/      # Chat UI
+│   │   │   ├── chart/     # Chart components
+│   │   │   └── ui/        # Reusable UI
+│   │   └── lib/           # Utilities
+│   │       ├── api/       # API client
+│   │       └── auth.ts    # Auth utilities
+│   └── package.json
+│
+└── README.md              # This file
+```
+
+---
+
+## 🎯 Usage Examples
+
+### Chat Commands
+
+```
+"What's the price of BTC?"
+→ Real-time Bitcoin price with 24h statistics
+
+"Analyze Tesla's latest 10-K"
+→ SEC filing analysis with financial metrics
+
+"Show me @AAPL technical indicators"
+→ Technical analysis with RSI, MACD, etc.
+
+"Explain support and resistance zones"
+→ Educational content about trading concepts
+```
+
+### Trading Mode
+
+Navigate to `/trade` for the full trading interface with:
+- TradingView chart integration
+- AI-powered side panel
+- Real-time market data
+- Technical indicator analysis
+
+---
+
+## 🧪 Testing
+
+### Backend Tests
+
+```bash
+cd backend
+pytest
+```
+
+### Frontend Tests
+
+```bash
+cd frontend
+npm test
+```
+
+For detailed testing instructions, see [TESTING_GUIDE.md](./TESTING_GUIDE.md)
+
+---
+
+## 📚 API Documentation
+
+Once the backend is running, visit:
+
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **Health Check**: http://localhost:8080/health
+
+### Key Endpoints
+
+- `POST /api/chat/create` - Create new chat session
+- `POST /api/chat/{chatId}/stream` - Stream AI responses
+- `GET /api/chat/{chatId}/messages` - Get chat history
+- `GET /api/integrations/binance/price/{symbol}` - Get crypto price
+- `GET /api/sec/filings/{ticker}` - Get SEC filings
+- `GET /api/trading/zones` - Get support/resistance zones
+
+---
+
+## 🛠️ Troubleshooting
+
+### Backend Issues
+
+**Port 8080 already in use:**
+```bash
+# Windows
+kill-port-8080.bat
+
+# Or manually find and kill the process
+netstat -ano | findstr :8080
+taskkill /PID <process_id> /F
+```
+
+**Missing dependencies:**
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+**Database errors:**
+```bash
+cd backend
+python init_database.py
+```
+
+### Frontend Issues
+
+**Port 3000 already in use:**
+```bash
+# Kill the process using port 3000
+npx kill-port 3000
+```
+
+**Module not found errors:**
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Build errors:**
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## 🚢 Production Deployment
+
+### Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn app:app --host 0.0.0.0 --port 8080
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm run build
+npm start
+```
+
+Make sure to:
+1. Set `ENVIRONMENT=production` in backend `.env`
+2. Configure proper `DATABASE_URL` for PostgreSQL
+3. Set secure `NEXTAUTH_SECRET`
+4. Update `CORS_ORIGINS` to your production domain
+5. Use environment-specific API keys
+
+---
+
+## 📖 Additional Documentation
+
+- **[Backend README](./backend/README.md)** - Backend-specific documentation
+- **[Frontend README](./frontend/README.md)** - Frontend-specific documentation
+- **[Quick Start Guide](./QUICK_START.md)** - Simplified startup instructions
+- **[Testing Guide](./TESTING_GUIDE.md)** - Comprehensive testing documentation
+- **[Quick Test](./QUICK_TEST.md)** - Quick verification tests
+
+---
+
+## 🤝 Contributing
+
+This is a private project. For questions or issues, contact the development team.
+
+---
+
+## 📄 License
+
+Proprietary - All rights reserved
+
+---
+
+## 🔗 Resources
+
+- **Next.js**: https://nextjs.org/
+- **FastAPI**: https://fastapi.tiangolo.com/
+- **Gemini API**: https://ai.google.dev/
+- **Perplexity API**: https://docs.perplexity.ai/
+- **Binance API**: https://binance-docs.github.io/apidocs/
+
+---
+
+**Built with ❤️ for institutional-grade trading analysis**

@@ -1,7 +1,9 @@
-fastapi==0.118.0
-uvicorn[standard]==0.37.0
-pydantic==2.11.9
-python-multipart==0.0.20
+fastapi==0.109.0
+uvicorn==0.31.1
+python-dotenv==1.0.1
+pydantic==2.11.0
+pydantic-settings==2.10.1
+python-multipart==0.0.9
 itsdangerous==2.2.0
 
 python-socketio==5.13.0
@@ -11,6 +13,12 @@ bcrypt==5.0.0
 argon2-cffi==25.1.0
 PyJWT[crypto]==2.10.1
 authlib==1.6.5
+stripe==11.3.0
+
+# Security libraries
+slowapi==0.1.9  # Rate limiting
+bleach==6.2.0  # Input sanitization
+python-jose[cryptography]==3.4.0  # JWT tokens
 
 requests==2.32.5
 aiohttp==3.12.15
@@ -36,6 +44,13 @@ loguru==0.7.3
 asgiref==3.8.1
 
 # AI libraries
+beautifulsoup4
+lxml
+ccxt
+alpaca-trade-api
+pandas
+# pandas-ta  # Not available, optional technical analysis library
+numpy
 tiktoken
 mcp==1.14.1
 
@@ -108,6 +123,7 @@ azure-storage-blob==12.24.1
 
 pymongo
 psycopg2-binary==2.9.10
+asyncpg==0.29.0
 pgvector==0.4.1
 
 PyMySQL==1.1.1
@@ -120,7 +136,7 @@ elasticsearch==9.1.0
 pinecone==6.0.2
 oracledb==3.2.0
 
-av==14.0.1 # Caution: Set due to FATAL FIPS SELFTEST FAILURE, see discussion https://github.com/open-webui/open-webui/discussions/15720
+av==14.0.1
 
 colbert-ai==0.2.21
 
@@ -129,6 +145,7 @@ colbert-ai==0.2.21
 docker~=7.1.0
 pytest~=8.4.1
 pytest-docker~=3.1.1
+pytest-asyncio~=0.23.0
 
 ## LDAP
 ldap3==2.9.1
@@ -148,3 +165,4 @@ opentelemetry-instrumentation-requests==0.58b0
 opentelemetry-instrumentation-logging==0.58b0
 opentelemetry-instrumentation-httpx==0.58b0
 opentelemetry-instrumentation-aiohttp-client==0.58b0
+feedparser

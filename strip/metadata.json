@@ -1,0 +1,5 @@
+{
+  "name": "Perplexity Clone",
+  "description": "A high-fidelity clone of the Perplexity AI interface featuring real-time Gemini search grounding, streaming responses, and responsive dark mode UI.",
+  "requestFramePermissions": []
+}

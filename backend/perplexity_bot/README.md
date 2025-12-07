@@ -1,11 +1,11 @@
 # Perplexity Trading Bot - Isolated Service
 
-A completely isolated FastAPI service for Perplexity-powered trading analysis, designed to avoid middleware conflicts with the main OpenWeb UI application.
+A completely isolated FastAPI service for Perplexity-powered trading analysis.
 
 ## 🎯 Architecture Overview
 
 This service runs independently on **port 8001** and provides:
-- **Isolated Environment**: No conflicts with OpenWeb UI middleware
+- **Isolated Environment**: Standalone service
 - **Fresh FastAPI Instance**: Clean, simple middleware stack
 - **Direct Perplexity Integration**: Enhanced prompts for trading analysis
 - **Comprehensive Error Handling**: Proper HTTP responses and logging

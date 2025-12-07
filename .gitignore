@@ -310,3 +310,9 @@ dist
 cypress/videos
 cypress/screenshots
 .vscode/settings.json
+
+backend/venv/
+**/venv/
+**/.runvenv/
+backend/.runvenv/
+.runvenv/

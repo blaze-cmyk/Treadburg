@@ -1,0 +1,24 @@
+# Add these to your backend/env file
+
+# ============================================
+# STRIPE PRICE IDs (Add after creating products in Stripe Dashboard)
+# ============================================
+
+# Pro Plan ($20/month or $200/year)
+STRIPE_PRICE_ID_PRO_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_ID_PRO_YEARLY=price_xxxxxxxxxxxxx
+
+# Max Plan ($200/month or $2000/year)
+STRIPE_PRICE_ID_MAX_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_ID_MAX_YEARLY=price_xxxxxxxxxxxxx
+
+# Credit Packages (Optional)
+STRIPE_PRICE_ID_CREDITS_100=price_xxxxxxxxxxxxx
+STRIPE_PRICE_ID_CREDITS_500=price_xxxxxxxxxxxxx
+STRIPE_PRICE_ID_CREDITS_1000=price_xxxxxxxxxxxxx
+
+# Webhook Secret (Get from Stripe CLI or Dashboard)
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
+
+# Frontend URL (for redirects)
+FRONTEND_URL=http://localhost:3000

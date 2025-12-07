@@ -1,0 +1,642 @@
+# TradeBerg V2 Agent Architecture - Complete As-Built Specification
+
+## Overview
+
+TradeBerg V2 implements a multi-agent system with three specialized agents that can run independently or in parallel:
+
+1. **Fundamental Agent** - Analyzes SEC filings via RAG (with on-demand ingestion)
+2. **Market Agent** - Analyzes charts via vision and generates market structure overlays
+3. **Synthesizer Agent** - Runs both agents in parallel and merges outputs
+
+---
+
+## 🧠 Fundamental Agent
+
+### Purpose
+Answers questions about company fundamentals using SEC filings (10-K, 10-Q) stored in a vector database. Automatically triggers ingestion if data is missing.
+
+### Complete Data Flow
+
+```mermaid
+flowchart TD
+    Start[User Query: What is AAPL revenue?]
+    
+    Start --> ExtractTicker[Extract Ticker: AAPL]
+    ExtractTicker --> ParallelFetch{Parallel Data Fetch}
+    
+    ParallelFetch -->|Task 1| RAGSearch[Vector Service Search]
+    ParallelFetch -->|Task 2| MarketData[Market Data Service]
+    
+    RAGSearch --> VectorDB[(pgvector DB)]
+    VectorDB --> CheckChunks{Chunks Found?}
+    
+    CheckChunks -->|Yes| BuildContext[Build Context]
+    CheckChunks -->|No| TriggerIngest[🔥 Trigger On-Demand Ingestion]
+    
+    TriggerIngest --> IngestService[Ingest Service]
+    IngestService --> CheckIndexed{Already Indexed?}
+    
+    CheckIndexed -->|Yes| SkipIngest[Return: already_indexed]
+    CheckIndexed -->|No| FetchSEC[SEC Client: get_recent_filings]
+    
+    FetchSEC --> SECData{Filing Found?}
+    SECData -->|Yes| PushQueue[Queue Manager: push_event<br/>source=manual<br/>priority=True]
+    SECData -->|No| ReturnNotFound[Return: not_found]
+    
+    PushQueue --> EventDB[(ingestion_events)]
+    EventDB --> Worker[Ingestion Worker]
+    
+    Worker --> DownloadFile[1. Resolve Primary Document URL]
+    DownloadFile --> ExtractText[2. Download HTML]
+    ExtractText --> ChunkText[3. Extract & Clean Text]
+    ChunkText --> EmbedChunks[4. Chunk size=2000, overlap=200]
+    EmbedChunks --> StoreVectors[5. Embed with Gemini]
+    StoreVectors --> VectorDB
+    
+    Worker --> WaitComplete{Wait for Completion<br/>30s timeout}
+    WaitComplete -->|Completed| RetrySearch[Retry Vector Search]
+    WaitComplete -->|Timeout| ReturnTimeout[Return: timeout]
+    
+    RetrySearch --> VectorDB
+    VectorDB --> BuildContext
+    
+    SkipIngest --> BuildContext
+    ReturnNotFound --> BuildContext
+    ReturnTimeout --> BuildContext
+    
+    MarketData --> CCXT[CCXT for Crypto]
+    MarketData --> GoogleSearch[Google Search for Stocks]
+    CCXT --> LivePrice[Live Price/Volume]
+    GoogleSearch --> LivePrice
+    LivePrice --> BuildContext
+    
+    BuildContext --> ContextString["Context String:<br/>QUERY: What is AAPL revenue?<br/>LIVE DATA: AAPL $228.52 +1.2%<br/>FILINGS: [5 chunks from 10-K]"]
+    
+    ContextString --> SystemPrompt["System Prompt:<br/>You are a fundamental analyst...<br/>Use ONLY provided filings.<br/>Always cite sources."]
+    
+    SystemPrompt --> LLMCall[Gemini 1.5 Flash<br/>temp=0.2]
+    LLMCall --> RawResponse[Raw LLM Response]
+    
+    RawResponse --> OutputEngine[Output Engine]
+    OutputEngine --> ExtractCitations[Extract Citations]
+    OutputEngine --> ExtractTables[Extract Tables]
+    OutputEngine --> ExtractCharts[Extract Charts]
+    
+    ExtractCitations --> FormatResponse[Formatted Response]
+    ExtractTables --> FormatResponse
+    ExtractCharts --> FormatResponse
+    
+    FormatResponse --> StreamUser[Stream to User]
+    
+    style TriggerIngest fill:#ff6b6b
+    style Worker fill:#ff6b6b
+    style VectorDB fill:#4ecdc4
+    style LLMCall fill:#95e1d3
+```
+
+### Key Components
+
+**File:** [backend/core/agents/fundamental_agent.py](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/core/agents/fundamental_agent.py)
+
+**System Prompt:**
+```python
+SYSTEM_PROMPT = """
+You are an expert fundamental analyst for TradeBerg.
+
+CRITICAL RULES:
+1. Use ONLY the provided SEC filings and market data
+2. ALWAYS cite sources: [Source: 10-K FY2024, Page: 42]
+3. If data unavailable, say "Data not available in provided filings"
+4. Present numerical data in tables where appropriate
+5. Calculate growth rates and trends when comparing periods
+
+OUTPUT FORMAT:
+## [Company] [Metric]
+
+* **Results snapshot**
+    * [Key metric]: [Value] [Source: ...]
+    * [Calculation]: [Result] [Source: ...]
+
+* **Missing Data** (if any)
+    * [What's missing and why]
+"""
+```
+
+**Dependencies:**
+- [VectorService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/vector_service.py#7-35) → Searches `document_chunks` table using cosine similarity
+- [MarketDataService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/market_data_service.py#8-133) → Fetches live prices via CCXT (crypto) or Google Search (stocks)
+- [IngestService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/ingest_service.py#13-74) → Triggers on-demand ingestion when data missing
+- [GeminiService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/gemini_service.py#28-230) → LLM generation with temperature=0.2 for accuracy
+- [OutputEngine](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/core/output_engine.py#5-126) → Extracts citations, tables, charts from response
+
+**Database Schema:**
+```sql
+document_chunks (
+    id SERIAL PRIMARY KEY,
+    ticker VARCHAR(10),
+    content TEXT,
+    embedding vector(768),
+    source VARCHAR(50),     -- "10-K", "10-Q"
+    metadata_ TEXT,         -- JSON: {"page": 42}
+    created_at TIMESTAMP
+)
+```
+
+---
+
+## 📊 Market Agent
+
+### Purpose
+Analyzes market structure using chart images (via vision) and historical data. Generates price charts with liquidity overlays (supply/demand zones, key levels).
+
+### Complete Data Flow
+
+```mermaid
+flowchart TD
+    Start[User Query + Optional Chart Image]
+    
+    Start --> ExtractTicker[Extract Ticker]
+    ExtractTicker --> ParallelFetch{Parallel Data Fetch}
+    
+    ParallelFetch -->|Task A| ChartVision[Chart Parser Service]
+    ParallelFetch -->|Task B| MarketSnap[Market Data Snapshot]
+    ParallelFetch -->|Task C| Historical[Historical OHLCV Data]
+    
+    ChartVision --> HasImage{Image Provided?}
+    HasImage -->|Yes| VisionAPI[Gemini Vision API]
+    HasImage -->|No| SkipVision[Skip Vision]
+    
+    VisionAPI --> VisionPrompt["Vision Prompt:<br/>Extract from chart:<br/>- Timeframe<br/>- Trend direction<br/>- High/low levels<br/>- Liquidity zones<br/>- Patterns"]
+    
+    VisionPrompt --> VisionJSON["Vision Response JSON:<br/>{<br/>  timeframe: '1D',<br/>  trend: 'bullish',<br/>  high_levels: [230.5, 235.0],<br/>  low_levels: [225.0, 220.5],<br/>  supply_zones: [{...}],<br/>  demand_zones: [{...}]<br/>}"]
+    
+    MarketSnap --> CCXT[CCXT API]
+    MarketSnap --> Google[Google Search]
+    CCXT --> LiveData[Live Price/Volume/OI]
+    Google --> LiveData
+    
+    Historical --> IsCrypto{Is Crypto?}
+    IsCrypto -->|Yes| CCXTHistorical[CCXT fetch_ohlcv]
+    IsCrypto -->|No| SkipHistorical[No Stock API<br/>Return Empty]
+    
+    CCXTHistorical --> OHLCVData["OHLCV Array:<br/>[[timestamp, open, high, low, close, volume], ...]"]
+    
+    VisionJSON --> BuildContext[Build Context]
+    SkipVision --> BuildContext
+    LiveData --> BuildContext
+    
+    BuildContext --> ContextString["Context String:<br/>QUERY: Analyze BTC chart<br/>CHART STRUCTURE: {vision_json}<br/>LIVE DATA: BTC $95,230 +2.3%"]
+    
+    ContextString --> SystemPrompt["System Prompt:<br/>You are a market structure analyst...<br/>Identify supply/demand zones.<br/>Output overlay JSON."]
+    
+    SystemPrompt --> LLMCall[Gemini 1.5 Flash<br/>temp=0.7]
+    LLMCall --> RawResponse[Raw LLM Response]
+    
+    OHLCVData --> BuildChart{Has Historical Data?}
+    BuildChart -->|Yes| ChartJSON["Build Chart JSON:<br/>{<br/>  timeframe: '1D',<br/>  data: [OHLCV],<br/>  ticker: 'BTC/USDT'<br/>}"]
+    BuildChart -->|No| SkipChart[No Chart]
+    
+    ChartJSON --> EmbedChart["Embed as:<br/>```json-chart<br/>{chart_data}<br/>```"]
+    
+    EmbedChart --> PrependResponse[Prepend to LLM Response]
+    RawResponse --> PrependResponse
+    SkipChart --> PrependResponse
+    
+    PrependResponse --> OutputEngine[Output Engine]
+    OutputEngine --> ExtractOverlay["Extract JSON Block:<br/>overlay: {<br/>  supply_zones: [...],<br/>  demand_zones: [...],<br/>  key_levels: [...]<br/>}"]
+    OutputEngine --> FormatMarkdown[Format Markdown]
+    
+    ExtractOverlay --> FinalResponse[Final Response with Chart + Overlay]
+    FormatMarkdown --> FinalResponse
+    
+    FinalResponse --> StreamUser[Stream to User]
+    
+    style VisionAPI fill:#95e1d3
+    style LLMCall fill:#95e1d3
+    style ChartJSON fill:#4ecdc4
+```
+
+### Key Components
+
+**File:** [backend/core/agents/market_agent.py](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/core/agents/market_agent.py)
+
+**System Prompt:**
+```python
+SYSTEM_PROMPT = """
+You are an expert market structure analyst for TradeBerg.
+
+ANALYZE:
+1. Chart structure (timeframe, trend, levels)
+2. Supply/demand zones (price ranges where liquidity exists)
+3. Key levels (support/resistance)
+4. Market patterns (flags, channels, breakouts)
+
+OUTPUT FORMAT:
+## Market Structure Analysis
+
+**Chart Overview:** [Timeframe, trend, current price]
+
+**Supply Zones:** (Where sellers are likely)
+- [Price range]: [Reason]
+
+**Demand Zones:** (Where buyers are likely)
+- [Price range]: [Reason]
+
+**Key Levels:**
+- Resistance: [Prices]
+- Support: [Prices]
+
+CRITICAL: Always output overlay JSON at the end:
+```json
+{
+  "supply_zones": [{"top": 96000, "bottom": 95500, "strength": 0.8}],
+  "demand_zones": [{"top": 94000, "bottom": 93500, "strength": 0.9}],
+  "key_levels": [95000, 94500, 94000]
+}
+```
+"""
+```
+
+**Chart Parser Service:**
+
+**File:** [backend/services/chart_parser.py](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/chart_parser.py)
+
+```python
+class ChartParser:
+    async def parse(self, image_bytes: bytes) -> Dict:
+        """Extract structure from chart image using Gemini Vision"""
+        
+        prompt = """
+        Analyze this trading chart and extract:
+        1. Timeframe (1m, 5m, 1h, 4h, 1D, etc.)
+        2. Trend (bullish, bearish, sideways)
+        3. High levels (resistance zones)
+        4. Low levels (support zones)
+        5. Liquidity zones (supply/demand areas)
+        6. Patterns (if any)
+        
+        Return as JSON.
+        """
+        
+        response = await gemini_vision.generate(image_bytes, prompt)
+        return json.loads(response)
+```
+
+**Dependencies:**
+- [ChartParser](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/chart_parser.py#5-49) → Gemini Vision API for image analysis
+- [MarketDataService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/market_data_service.py#8-133) → CCXT for crypto data, Google Search for stocks
+- [GeminiService](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/gemini_service.py#28-230) → LLM generation with temp=0.7 for creative analysis
+- [OutputEngine](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/core/output_engine.py#5-126) → Extracts `overlay` JSON block and `json-chart` block
+
+**Frontend Integration:**
+
+**File:** [frontend/src/components/chart/FinancialChart.tsx](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/frontend/src/components/chart/FinancialChart.tsx)
+
+```typescript
+interface ChartData {
+  timeframe: string;
+  data: [number, number, number, number, number][]; // OHLCV
+  ticker: string;
+}
+
+interface Overlay {
+  supply_zones: Array<{top: number; bottom: number; strength: number}>;
+  demand_zones: Array<{top: number; bottom: number; strength: number}>;
+  key_levels: number[];
+}
+
+// Render supply zones as red rectangles
+overlay.supply_zones.forEach(zone => {
+  chart.addShape({
+    type: 'rectangle',
+    yMin: zone.bottom,
+    yMax: zone.top,
+    backgroundColor: 'rgba(255, 0, 0, 0.2)'
+  });
+});
+
+// Render demand zones as green rectangles
+overlay.demand_zones.forEach(zone => {
+  chart.addShape({
+    type: 'rectangle',
+    yMin: zone.bottom,
+    yMax: zone.top,
+    backgroundColor: 'rgba(0, 255, 0, 0.2)'
+  });
+});
+
+// Render key levels as horizontal lines
+overlay.key_levels.forEach(level => {
+  chart.addLine({
+    yValue: level,
+    color: 'blue',
+    width: 2
+  });
+});
+```
+
+---
+
+## 🔀 Synthesizer Agent (Mixed/Unified)
+
+### Purpose
+Runs Fundamental and Market agents in parallel, then merges their outputs into a single coherent response. Used for queries requiring both fundamental and technical analysis.
+
+### Complete Data Flow
+
+```mermaid
+flowchart TD
+    Start[User Query: AAPL fundamentals + chart analysis]
+    
+    Start --> IntentRouter[Intent Router: MIXED_CONTEXT]
+    IntentRouter --> ExtractTicker[Extract Ticker: AAPL]
+    ExtractTicker --> LaunchParallel{Launch Parallel Agents}
+    
+    LaunchParallel -->|Thread 1| FundAgent[Fundamental Agent.run]
+    LaunchParallel -->|Thread 2| MarketAgent[Market Agent.run]
+    
+    FundAgent --> FundRAG[Vector Search]
+    FundAgent --> FundMarket[Market Data]
+    FundRAG --> FundVectorDB[(document_chunks)]
+    FundVectorDB --> FundChunks[SEC Filing Chunks]
+    FundMarket --> FundLive[Live Price Data]
+    
+    FundChunks --> FundContext[Build Fundamental Context]
+    FundLive --> FundContext
+    FundContext --> FundLLM[Gemini: Fundamental Analysis]
+    FundLLM --> FundResponse["Response A:<br/>## AAPL Fundamentals<br/>Revenue: $391B<br/>[Source: 10-K]"]
+    
+    MarketAgent --> MarketVision[Chart Parser]
+    MarketAgent --> MarketData[Market Data]
+    MarketAgent --> MarketHist[Historical Data]
+    
+    MarketVision --> VisionAPI[Gemini Vision]
+    VisionAPI --> VisionJSON[Chart Structure JSON]
+    MarketData --> LiveData[Live Price/Volume]
+    MarketHist --> OHLCV[OHLCV Array]
+    
+    VisionJSON --> MarketContext[Build Market Context]
+    LiveData --> MarketContext
+    MarketContext --> MarketLLM[Gemini: Market Analysis]
+    MarketLLM --> MarketResponse["Response B:<br/>## Market Structure<br/>Supply: $230-235<br/>```json overlay```"]
+    
+    OHLCV --> ChartData["```json-chart<br/>{data}<br/>```"]
+    ChartData --> MarketResponse
+    
+    FundResponse --> AwaitBoth{await asyncio.gather}
+    MarketResponse --> AwaitBoth
+    
+    AwaitBoth --> MergeLogic[Merge Logic]
+    
+    MergeLogic --> ExtractFund[Extract Fundamental Sections]
+    MergeLogic --> ExtractMarket[Extract Market Sections]
+    MergeLogic --> ExtractChart[Extract Chart JSON]
+    MergeLogic --> ExtractOverlay[Extract Overlay JSON]
+    
+    ExtractFund --> CombineText["Combined Markdown:<br/>## Comprehensive AAPL Analysis<br/><br/>### Fundamentals<br/>[Fund content]<br/><br/>### Market Structure<br/>[Market content]"]
+    ExtractMarket --> CombineText
+    
+    ExtractChart --> PrependChart[Prepend Chart Block]
+    PrependChart --> CombineText
+    
+    ExtractOverlay --> AttachOverlay[Attach Overlay to Response]
+    AttachOverlay --> CombineText
+    
+    CombineText --> OutputEngine[Output Engine]
+    OutputEngine --> FinalResponse["Final Unified Response:<br/>```json-chart```<br/>## Analysis<br/>Fundamentals + Market<br/>```json overlay```"]
+    
+    FinalResponse --> StreamUser[Stream to User]
+    
+    style FundLLM fill:#95e1d3
+    style MarketLLM fill:#95e1d3
+    style MergeLogic fill:#f38181
+```
+
+### Key Components
+
+**File:** [backend/core/synthesizer.py](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/core/synthesizer.py)
+
+```python
+class MultiAgentSynthesizer:
+    """
+    Orchestrates Fundamental and Market agents in parallel.
+    Merges outputs into a unified response.
+    """
+    
+    async def run(self, intent: IntentObject) -> Dict[str, Any]:
+        # 1. Launch both agents in parallel
+        fundamental_result, market_result = await asyncio.gather(
+            fundamental_agent.run(intent),
+            market_agent.run(intent)
+        )
+        
+        # 2. Merge responses
+        merged = self._merge_responses(fundamental_result, market_result)
+        
+        return merged
+    
+    def _merge_responses(self, fund: Dict, market: Dict) -> Dict:
+        """Merge fundamental and market agent outputs"""
+        
+        # Extract components
+        fund_text = fund.get("markdown", "")
+        market_text = market.get("markdown", "")
+        chart = market.get("chart", None)
+        overlay = market.get("overlay", None)
+        citations = fund.get("citations", [])
+        
+        # Combine markdown
+        combined_markdown = f"""
+## Comprehensive Analysis
+
+### Fundamentals
+{fund_text}
+
+### Market Structure
+{market_text}
+"""
+        
+        # Build response
+        return {
+            "markdown": combined_markdown,
+            "chart": chart,
+            "overlay": overlay,
+            "citations": citations,
+            "agent": "synthesizer"
+        }
+```
+
+**Intent Routing Logic:**
+
+**File:** [backend/services/intent_service.py](file:///Users/anmolunhinged/Downloads/Film%20Space%20-%20The%20Ultimate%20Master%20Bundle/CINEGRAMS%20/tradebergs-1%20copy/backend/services/intent_service.py)
+
+```python
+def classify(query: str, has_image: bool, tickers: List[str]) -> Intent:
+    """Classify query to determine which agent(s) to use"""
+    
+    fund_keywords = ["revenue", "earnings", "margin", "cash", "balance", 
+                     "debt", "profit", "growth", "financial"]
+    chart_keywords = ["chart", "liquidity", "stop", "sweep", "setup", 
+                      "level", "zone", "pattern", "technical"]
+    
+    fund_score = sum(1 for kw in fund_keywords if kw in query.lower())
+    chart_score = sum(1 for kw in chart_keywords if kw in query.lower())
+    
+    # Decision tree
+    if has_image or chart_score > 2:
+        return Intent.CHART_REASONING  # Market Agent only
+    
+    elif fund_score > 3:
+        return Intent.FUNDAMENTAL_ANALYSIS  # Fundamental Agent only
+    
+    elif fund_score > 0 and chart_score > 0:
+        return Intent.MIXED_CONTEXT  # Synthesizer (both agents)
+    
+    else:
+        return Intent.GENERAL_SMALLTALK  # Base LLM
+```
+
+---
+
+## 📈 Complete System Integration
+
+### Request Flow (Chat Endpoint)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant ChatAPI
+    participant IntentRouter
+    participant FundAgent
+    participant MarketAgent
+    participant Synthesizer
+    participant OutputEngine
+    
+    User->>Frontend: "What is AAPL revenue and where are the key levels?"
+    Frontend->>ChatAPI: POST /api/chat/{id}/stream
+    ChatAPI->>IntentRouter: Classify query
+    IntentRouter->>IntentRouter: Extract tickers: [AAPL]
+    IntentRouter->>IntentRouter: Score keywords: fund=2, chart=2
+    IntentRouter->>IntentRouter: Decision: MIXED_CONTEXT
+    
+    IntentRouter->>Synthesizer: Route to Synthesizer
+    
+    par Parallel Execution
+        Synthesizer->>FundAgent: agent.run(intent)
+        and
+        Synthesizer->>MarketAgent: agent.run(intent)
+    end
+    
+    FundAgent-->>Synthesizer: {markdown, citations}
+    MarketAgent-->>Synthesizer: {markdown, chart, overlay}
+    
+    Synthesizer->>Synthesizer: Merge responses
+    Synthesizer->>OutputEngine: Format final output
+    OutputEngine-->>ChatAPI: {markdown, chart, overlay, citations}
+    
+    ChatAPI->>ChatAPI: Save to messages table
+    ChatAPI-->>Frontend: SSE Stream
+    Frontend-->>User: Display unified analysis + chart
+```
+
+---
+
+## 🗄️ Database Schema
+
+```sql
+-- Document chunks for RAG
+CREATE TABLE document_chunks (
+    id SERIAL PRIMARY KEY,
+    ticker VARCHAR(10) NOT NULL,
+    content TEXT NOT NULL,
+    embedding vector(768),  -- pgvector extension
+    source VARCHAR(50),     -- "10-K", "10-Q"
+    metadata_ TEXT,         -- JSON string
+    created_at TIMESTAMP DEFAULT NOW(),
+    INDEX idx_ticker (ticker),
+    INDEX idx_embedding USING ivfflat (embedding vector_cosine_ops)
+);
+
+-- Ingestion queue (priority + source tracking)
+CREATE TABLE ingestion_events (
+    id VARCHAR PRIMARY KEY,
+    ticker VARCHAR(10) NOT NULL,
+    cik VARCHAR(10),
+    filing_url TEXT NOT NULL,
+    form_type VARCHAR(10) NOT NULL,
+    filed_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'PENDING',  -- PENDING, PROCESSING, COMPLETED, FAILED
+    error_message TEXT,
+    source VARCHAR(10) DEFAULT 'rss',       -- rss, manual, backfill
+    is_priority BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    INDEX idx_priority_status (is_priority DESC, status, created_at)
+);
+
+-- Chat messages
+CREATE TABLE messages (
+    id VARCHAR PRIMARY KEY,
+    chat_id VARCHAR NOT NULL,
+    role VARCHAR(10) NOT NULL,  -- user, assistant
+    content TEXT NOT NULL,
+    metadata TEXT,              -- JSON: {agent, citations, chart, overlay}
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
+## 🔧 Configuration & Dependencies
+
+**LLM Configuration:**
+- Model: Gemini 1.5 Flash
+- Fundamental Agent: temp=0.2 (accuracy)
+- Market Agent: temp=0.7 (creativity)
+- Max tokens: 8192
+
+**Vector Search:**
+- Embedding: Gemini `text-embedding-004` (768 dimensions)
+- Similarity: Cosine distance
+- Top-K: 5 chunks per query
+
+**Data Sources:**
+- SEC Filings: `https://data.sec.gov` (with User-Agent header)
+- Crypto Prices: CCXT (Binance, Coinbase)
+- Stock Prices: Google Search Grounding
+
+**Rate Limits:**
+- SEC API: 10 req/sec (150ms between requests)
+- Gemini API: Default quota
+- CCXT: Exchange-specific limits
+
+---
+
+## ✅ Current Capabilities
+
+**Fundamental Agent:**
+- ✅ On-demand ingestion for any ticker
+- ✅ Real SEC filing data with citations
+- ✅ Revenue, earnings, margin analysis
+- ✅ Multi-year comparisons
+- ✅ Automatic data freshness (30s timeout)
+
+**Market Agent:**
+- ✅ Chart image analysis via vision
+- ✅ Live crypto price charts (OHLCV)
+- ✅ Supply/demand zone detection
+- ✅ Key level identification
+- ✅ Overlay JSON for frontend rendering
+
+**Synthesizer:**
+- ✅ Parallel agent execution
+- ✅ Response merging
+- ✅ Unified output format
+- ✅ Citation preservation
+
+**Coverage:**
+- 🌍 Any company with SEC filings
+- 📊 Crypto markets (full historical data)
+- ⚠️ Stock markets (live data only, no historical charts)
