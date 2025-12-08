@@ -15,7 +15,7 @@ export const auth = {
       email,
       password,
       options: {
-        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`
+        emailRedirectTo: `${process.env.NEXTAUTH_URL || 'https://tradeberg-frontend.onrender.com'}/auth/callback`
       }
     })
   },
@@ -36,7 +36,7 @@ export const auth = {
   // Reset password
   resetPassword: async (email: string) => {
     return supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/reset-password`,
+      redirectTo: `${process.env.NEXTAUTH_URL || 'https://tradeberg-frontend.onrender.com'}/reset-password`,
     })
   },
   

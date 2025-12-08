@@ -13,17 +13,17 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error('Error exchanging code for session:', error)
-        return NextResponse.redirect(new URL('/login?error=auth_callback_error', request.url))
+        return NextResponse.redirect('https://tradeberg-frontend.onrender.com/login?error=auth_callback_error')
       }
       
       // Successfully authenticated
-      return NextResponse.redirect(new URL('/?auth=success', request.url))
+      return NextResponse.redirect('https://tradeberg-frontend.onrender.com/?auth=success')
     } catch (err) {
       console.error('Unexpected error during auth callback:', err)
-      return NextResponse.redirect(new URL('/login?error=unexpected', request.url))
+      return NextResponse.redirect('https://tradeberg-frontend.onrender.com/login?error=unexpected')
     }
   }
 
   // No code provided
-  return NextResponse.redirect(new URL('/login', request.url))
+  return NextResponse.redirect('https://tradeberg-frontend.onrender.com/login')
 }

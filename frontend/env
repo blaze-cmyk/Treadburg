@@ -41,7 +41,7 @@ COINALYZE_API_BASE_URL=https://api.coinalyze.net/v1
 # OLLAMA_BASE_URL=http://localhost:11434
 
 # CORS Configuration
-CORS_ALLOW_ORIGIN=http://localhost:5173
+CORS_ALLOW_ORIGIN=https://tradeberg-frontend.onrender.com
 
 # Disable analytics
 SCARF_NO_ANALYTICS=true
@@ -50,13 +50,13 @@ SCARF_NO_ANALYTICS=true
 WEBUI_NAME=TradeBerg
 # NextAuth Configuration
 NEXTAUTH_SECRET=jAamxBTZfv5kQH9zFen8YX6Gbr3dh0Ji
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://tradeberg-frontend.onrender.com
 
 # Database (Supabase PostgreSQL)
 DATABASE_URL=postgresql://postgres.pcxscejarxztezfeucgs:Treadburg%401@aws-0-us-east-1.pooler.supabase.com:5432/postgres?pgbouncer=true&sslmode=require
 
 # Backend API
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8080/api
+NEXT_PUBLIC_API_URL=https://tradeberg-backend.railway.app/api
 
 
 # MCP Server Configuration
