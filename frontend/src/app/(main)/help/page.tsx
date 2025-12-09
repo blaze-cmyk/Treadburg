@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { HelpCircle, BookOpen, MessageSquare, Mail } from "lucide-react";
+import { HelpCircle, BookOpen, MessageSquare, Mail, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 import Link from "next/link";
