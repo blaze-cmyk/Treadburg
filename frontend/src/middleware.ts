@@ -63,8 +63,14 @@ export async function middleware(req: NextRequest) {
     const origin = getOrigin(req);
     const redirectUrl = new URL('/login', origin)
 
-    // Add the requested URL as a query param to enable redirection after login
-    redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname)
+    // Store the requested URL in a cookie instead of a query param
+    // This avoids issues with the redirect URL being visible in the browser
+    response.cookies.set({
+      name: 'redirect_after_login',
+      value: req.nextUrl.pathname,
+      maxAge: 60 * 10, // 10 minutes
+      path: '/',
+    })
 
     return NextResponse.redirect(redirectUrl)
   }

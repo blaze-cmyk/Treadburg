@@ -33,23 +33,72 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Check if user is already logged in
+  // Check if user is already logged in or handle authentication success/errors
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session) {
-        router.push('/');
+      try {
+        console.log('Checking for existing session...');
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          console.log('User already has a session, redirecting to home');
+          // User is logged in, redirect to home
+          router.push('/');
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
       }
     };
 
     checkSession();
 
-    // Check for error params
+    // Check for auth success or error params
+    const authSuccess = searchParams?.get('auth');
     const errorType = searchParams?.get('error');
+    const accessToken = searchParams?.get('access_token');
+    
+    // Log auth parameters for debugging
+    if (authSuccess || errorType || accessToken) {
+      console.log('Auth URL parameters detected:', { 
+        authSuccess, 
+        errorType, 
+        hasAccessToken: !!accessToken 
+      });
+    }
+    
+    // Handle successful authentication
+    if (authSuccess === 'success' || accessToken) {
+      console.log('Authentication successful, checking for redirect');
+      
+      // Check if we have a redirect cookie
+      const cookies = document.cookie.split(';');
+      let redirectPath = '/';
+      
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'redirect_after_login' && value) {
+          // We have a redirect path
+          redirectPath = decodeURIComponent(value);
+          console.log('Redirecting to stored path:', redirectPath);
+          // Clear the cookie
+          document.cookie = 'redirect_after_login=; max-age=0; path=/';
+          break;
+        }
+      }
+      
+      // Use replace to avoid back navigation issues
+      router.replace(redirectPath);
+      return;
+    }
+    
+    // Handle authentication errors
     if (errorType === 'auth_callback_error') {
-      setError('Authentication failed. Please try again.');
+      const reason = searchParams?.get('reason');
+      setError(`Authentication failed: ${reason || 'Please try again.'}`);
     } else if (errorType === 'unexpected') {
-      setError('An unexpected error occurred. Please try again.');
+      const message = searchParams?.get('message');
+      setError(`An unexpected error occurred: ${message || 'Please try again.'}`);
+    } else if (errorType === 'no_code') {
+      setError('Authentication process was interrupted. Please try again.');
     }
   }, [router, searchParams]);
 
@@ -189,18 +238,49 @@ function LoginContent() {
             try {
               if (isLogin) {
                 // Login with Supabase directly
-                const { data, error: signInError } = await auth.signIn(email, password);
+                console.log('Attempting to sign in with email:', email);
+                const { data, error: signInError } = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
+                });
 
                 if (signInError) {
+                  console.error('Login error:', signInError);
                   setError(signInError.message);
                 } else if (data.session) {
-                  router.push("/");
+                  console.log('Login successful, checking for redirect');
+                  // Check if we have a redirect cookie
+                  const cookies = document.cookie.split(';');
+                  let redirectPath = '/';
+                  
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'redirect_after_login' && value) {
+                      // We have a redirect path
+                      redirectPath = decodeURIComponent(value);
+                      console.log('Redirecting to stored path:', redirectPath);
+                      // Clear the cookie
+                      document.cookie = 'redirect_after_login=; max-age=0; path=/';
+                      break;
+                    }
+                  }
+                  
+                  // Use replace instead of push to prevent back navigation to login
+                  router.replace(redirectPath);
                 }
               } else {
                 // Sign up with Supabase directly
-                const { data, error: signUpError } = await auth.signUp(email, password);
+                console.log('Attempting to sign up with email:', email);
+                const { data, error: signUpError } = await supabase.auth.signUp({
+                  email,
+                  password,
+                  options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                  },
+                });
 
                 if (signUpError) {
+                  console.error('Signup error:', signUpError);
                   setError(signUpError.message);
                 } else {
                   setError("");
@@ -307,32 +387,47 @@ function LoginContent() {
               className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]"
               onClick={async () => {
                 try {
-                  // Direct approach - no window.location or environment variables
+                  setLoading(true);
                   console.log('Starting Google OAuth...');
                   
-                  // We're hardcoding the URL directly as a final solution
+                  // Import the helper functions
+                  const { getOAuthRedirectUrl, getGoogleOAuthOptions } = await import('@/lib/auth-helpers');
+                  
+                  // Get the redirect URL and OAuth options
+                  const redirectTo = getOAuthRedirectUrl();
+                  console.log('Using OAuth redirect URL:', redirectTo);
+                  
+                  // Create a new Supabase session with explicit options
                   const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: 'https://tradeberg-frontend.onrender.com/auth/callback',
-                      // Add scopes to ensure we get the right permissions
-                      scopes: 'email profile',
-                      // Explicitly set the queryParams to avoid any default behavior
-                      queryParams: {
-                        access_type: 'online',
-                        prompt: 'select_account'
-                      }
+                      // Use the helper function to get the redirect URL
+                      redirectTo,
+                      // Use the helper function to get the Google OAuth options
+                      ...getGoogleOAuthOptions()
                     }
                   });
                   
-                  console.log('OAuth initiated:');
+                  // Log the redirect URL for debugging
+                  if (data?.url) {
+                    console.log('OAuth initiated - redirecting to:', data.url);
+                  } else {
+                    console.log('OAuth initiated but no URL returned');  
+                  }
 
                   if (error) {
                     setError(error.message);
                   }
+                  
+                  // If there's a URL, the OAuth flow is continuing elsewhere, so we can reset loading
+                  if (data?.url) {
+                    // OAuth redirect happens automatically, we don't need to keep the loading state
+                    setLoading(false);
+                  }
                 } catch (err: any) {
                   console.error('Google login error:', err);
                   setError(err?.message || 'Failed to sign in with Google');
+                  setLoading(false);
                 }
               }}
             >

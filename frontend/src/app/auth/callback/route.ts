@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// Helper to get the actual origin (handles proxy/Render case)
-function getOrigin(request: NextRequest) {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  if (forwardedHost) {
-    return `https://${forwardedHost}`;
-  }
-  return request.nextUrl.origin;
+// Import constants instead of defining them here
+import { PRODUCTION_URL } from '@/lib/constants'
+
+// CRITICAL FIX: Always use the production URL for OAuth callbacks
+// This prevents redirect issues across different environments
+function getOrigin() {
+  return PRODUCTION_URL;
 }
 
 // this route handles the callback from Supabase Auth
@@ -19,8 +16,8 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
 
-  // Use dynamic origin but fallback to production URL if needed
-  const origin = getOrigin(request);
+  // Always use production URL for OAuth callback
+  const origin = getOrigin();
 
   if (code) {
     const cookieStore = await cookies()
