@@ -1,0 +1,179 @@
+================================================================================
+TRADEBERG - DEPLOYMENT READY CHECKLIST
+================================================================================
+
+✅ BACKEND (Render - https://treadburg.onrender.com)
+================================================================================
+Status: ALREADY DEPLOYED AND WORKING
+
+Implemented:
+✅ Authentication endpoints (/api/auth/login, /api/auth/register, /api/auth/logout, /api/auth/me)
+✅ Chat endpoints (/api/chat, /api/chat/stream, /api/chat/create)
+✅ Billing/Stripe endpoints (/api/billing/tiers, /api/billing/create-checkout-session)
+✅ Supabase connection (using REST API)
+✅ Database models (Chat, Message, User)
+
+What to do:
+1. Push the updated auth.py file to GitHub
+2. Render will auto-deploy
+3. Backend will be ready with full auth support
+
+
+✅ FRONTEND (Render - https://tradeberg-frontend.onrender.com)
+================================================================================
+Status: READY TO DEPLOY
+
+Implemented:
+✅ Login page with email/password + Google OAuth
+✅ Signup page
+✅ Dashboard page
+✅ Profile page with editing
+✅ Chat page (connects to backend)
+✅ Pricing page (Stripe integration)
+✅ Navigation with user menu
+✅ API client (connects to backend)
+✅ UserContext (currently uses Supabase directly - needs update)
+
+What to do:
+1. Push all frontend changes to GitHub
+2. Add environment variable on Render:
+   NEXT_PUBLIC_BACKEND_URL=https://treadburg.onrender.com
+3. Deploy
+
+
+⚠️ CRITICAL: FRONTEND STILL USES SUPABASE DIRECTLY
+================================================================================
+Current Issue:
+- UserContext.tsx uses Supabase client directly
+- Login page uses Supabase client directly
+- This bypasses the backend
+
+Need to Fix:
+- Update UserContext to use apiClient instead of Supabase
+- Update login page to use apiClient.login() instead of supabase.auth
+- Remove direct Supabase imports from frontend
+
+
+✅ COMPLETE USER FLOW (After fixes)
+================================================================================
+
+1. User visits site → Landing page
+2. User clicks "Sign Up" → /signup
+3. User enters email/password → Frontend → Backend /api/auth/register → Supabase
+4. Backend creates profile with 100 free credits
+5. User redirected to /dashboard
+6. User sees: Credits: 100, Subscription: Free
+7. User clicks "AI Chat" → /chat
+8. User types message → Frontend → Backend /api/chat
+9. Backend checks credits (100 available)
+10. Backend calls Gemini AI → Returns response
+11. Backend deducts 1 credit (99 remaining)
+12. User sees AI response
+13. User wants more credits → /pricing
+14. User clicks "Subscribe to Pro" ($20/month)
+15. Frontend → Backend /api/billing/create-checkout-session
+16. Backend → Stripe → Returns checkout URL
+17. User pays on Stripe
+18. Stripe webhook → Backend /api/billing/webhook
+19. Backend updates profile: subscription_tier = "pro", credits = 999999
+20. User can now use unlimited AI chat
+
+
+✅ STRIPE CONFIGURATION
+================================================================================
+Backend has:
+- Subscription tiers (Free, Pro $20/month, Max $200/month)
+- Stripe price IDs configured
+- Webhook endpoint ready
+- Credit management system
+
+Need to configure:
+1. Stripe webhook URL: https://treadburg.onrender.com/api/billing/webhook
+2. Webhook events: checkout.session.completed, invoice.paid, customer.subscription.deleted
+
+
+✅ SUPABASE CONFIGURATION
+================================================================================
+Tables:
+✅ auth.users (Supabase managed)
+✅ public.profiles (Your custom table)
+✅ public.chats (Backend creates)
+✅ public.messages (Backend creates)
+
+RLS Policies:
+✅ Users can view own profile
+✅ Users can update own profile
+✅ Users can insert own profile
+
+Site URL: https://tradeberg-frontend.onrender.com
+Redirect URLs:
+- https://tradeberg-frontend.onrender.com/auth/callback
+- https://tradeberg-frontend.onrender.com/dashboard
+- https://tradeberg-frontend.onrender.com
+
+
+✅ GOOGLE OAUTH CONFIGURATION
+================================================================================
+Authorized redirect URIs:
+- https://tradeberg-frontend.onrender.com/auth/callback
+- https://pcxscejarxztezfeucgs.supabase.co/auth/v1/callback
+
+
+================================================================================
+DEPLOYMENT STEPS
+================================================================================
+
+STEP 1: Push Backend Changes
+----------------------------
+cd backend
+git add routes/auth.py
+git commit -m "Implement complete authentication endpoints"
+git push
+
+STEP 2: Push Frontend Changes
+----------------------------
+cd frontend
+git add .
+git commit -m "Connect frontend to backend API with Stripe integration"
+git push
+
+STEP 3: Configure Render (Frontend)
+----------------------------
+Add environment variable:
+NEXT_PUBLIC_BACKEND_URL=https://treadburg.onrender.com
+
+STEP 4: Test Everything
+----------------------------
+1. Visit https://tradeberg-frontend.onrender.com
+2. Sign up with new account
+3. Check profile created in Supabase
+4. Try AI chat (should have 100 credits)
+5. Go to /pricing
+6. Test Stripe checkout (use test card: 4242 4242 4242 4242)
+7. Verify credits updated after payment
+
+
+================================================================================
+WHAT'S WORKING NOW
+================================================================================
+
+✅ Backend deployed on Render
+✅ Backend auth endpoints implemented
+✅ Backend chat endpoints working
+✅ Backend Stripe integration ready
+✅ Frontend pages created
+✅ Frontend API client ready
+✅ Database schema ready
+✅ User flow designed
+
+⚠️ WHAT NEEDS FIXING BEFORE DEPLOY
+================================================================================
+
+❌ Frontend UserContext still uses Supabase directly
+❌ Frontend login page still uses Supabase directly
+❌ Need to remove Supabase imports from frontend
+❌ Need to use apiClient everywhere
+
+This will take 5-10 minutes to fix, then ready to deploy!
+
+================================================================================

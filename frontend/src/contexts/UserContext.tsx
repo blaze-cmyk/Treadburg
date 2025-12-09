@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { User } from "@supabase/supabase-js";
+import { apiClient } from "@/lib/api-client";
 
 interface UserProfile {
   id: string;
@@ -28,6 +27,12 @@ interface UserProfile {
   is_verified?: boolean;
 }
 
+interface User {
+  id: string;
+  email: string;
+  email_confirmed_at?: string;
+}
+
 interface UserContextType {
   user: User | null;
   profile: UserProfile | null;
@@ -39,20 +44,6 @@ interface UserContextType {
   refreshProfile: () => Promise<void>;
 }
 
-// Default profile is only used when creating a new profile
-const defaultProfile = (user: User): Partial<UserProfile> => ({
-  auth_user_id: user.id,
-  full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-  email: user.email || "",
-  avatar_url: user.user_metadata?.avatar_url,
-  is_active: true,
-  is_verified: user.email_confirmed_at ? true : false,
-  subscription_tier: "free",
-  credits_balance: 0,
-  total_credits_purchased: 0,
-  created_at: new Date().toISOString(),
-  last_login_at: new Date().toISOString()
-});
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
@@ -61,167 +52,68 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Listen for auth state changes
+  // Check for existing session on mount
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setIsLoading(true);
-      console.log("Auth state changed:", event);
-      
-      if (session?.user) {
-        setUser(session.user);
-        await fetchOrCreateProfile(session.user);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      
-      setIsLoading(false);
-    });
-
-    // Initial session check
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        await fetchOrCreateProfile(session.user);
-      }
-      setIsLoading(false);
-    };
-    
-    checkSession();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
+    checkAuth();
   }, []);
 
-  // Fetch user profile from database or create one if it doesn't exist
-  const fetchOrCreateProfile = async (user: User) => {
+  const checkAuth = async () => {
     try {
-      console.log("Fetching profile for user:", user.id, user.email);
+      setIsLoading(true);
+      const token = apiClient.getAuthToken();
       
-      // Try to get the existing profile
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      console.log("Profile fetch result:", { data, error });
-
-      if (error || !data) {
-        console.log("No profile found, creating new profile for user:", user.email);
-        
-        // Profile doesn't exist, create one
-        const newProfileData = defaultProfile(user);
-        console.log("Generated new profile data:", newProfileData);
-        
-        const { data: insertData, error: insertError } = await supabase
-          .from('profiles')
-          .insert([newProfileData])
-          .select();
-
-        if (insertError) {
-          console.error("Error creating profile:", insertError);
-          
-          // Create a temporary local profile if insertion fails
-          const tempProfile: UserProfile = {
-            id: crypto.randomUUID(),
-            auth_user_id: user.id,
-            full_name: user.email?.split("@")[0] || "New User",
-            email: user.email || "",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_login_at: new Date().toISOString(),
-            is_active: true,
-            is_verified: false
-          } as UserProfile;
-          
-          setProfile(tempProfile);
-          console.log("Using temporary profile due to database error", tempProfile);
-          return;
-        }
-        
-        if (insertData && insertData.length > 0) {
-          console.log("Successfully created profile:", insertData[0]);
-          setProfile(insertData[0] as UserProfile);
-        } else {
-          console.error("No profile data returned after insert");
-        }
-      } else {
-        // Profile exists
-        console.log("Found existing profile:", data);
-        setProfile(data as UserProfile);
-        
-        // Update last login time
-        await supabase
-          .from('profiles')
-          .update({ last_login_at: new Date().toISOString() })
-          .eq('auth_user_id', user.id);
+      if (!token) {
+        setUser(null);
+        setProfile(null);
+        setIsLoading(false);
+        return;
       }
+
+      // Get current user from backend
+      const response = await apiClient.getCurrentUser();
+      setUser(response.user);
+      setProfile(response.profile);
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      
-      // Fallback to a clean temporary profile
-      const tempProfile: UserProfile = {
-        id: crypto.randomUUID(),
-        auth_user_id: user.id,
-        full_name: user.email?.split("@")[0] || "New User",
-        email: user.email || "",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_login_at: new Date().toISOString(),
-        is_active: true,
-        is_verified: false
-      } as UserProfile;
-      
-      setProfile(tempProfile);
-      console.log("Using fallback profile due to error", tempProfile);
+      console.error("Auth check failed:", error);
+      // Clear invalid token
+      apiClient.setAuthToken(null);
+      setUser(null);
+      setProfile(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Update profile in Supabase
+
+  // Update profile through backend
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return;
     
     try {
-      // Add updated_at timestamp
-      const updatedData = {
-        ...updates,
-        updated_at: new Date().toISOString()
-      };
+      // Update profile through backend API
+      const response = await apiClient.updateUserProfile(updates);
       
-      const { error } = await supabase
-        .from('profiles')
-        .update(updatedData)
-        .eq('auth_user_id', user.id);
-
-      if (error) {
-        console.error("Error updating profile:", error);
-        return;
+      // Update local state with response
+      if (response.profile) {
+        setProfile(response.profile);
+      } else {
+        // Fallback: update local state
+        setProfile(prev => prev ? { ...prev, ...updates } : null);
       }
-
-      // Update local state
-      setProfile(prev => prev ? { ...prev, ...updatedData } : null);
     } catch (error) {
       console.error("Error updating profile:", error);
+      throw error;
     }
   };
 
   const refreshProfile = async () => {
-    if (!user) return;
-    await fetchOrCreateProfile(user);
+    await checkAuth();
   };
 
   const signOut = async () => {
     try {
       console.log("Signing out user...");
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Error signing out:", error);
-        return;
-      }
+      await apiClient.logout();
       
       // Clear local state
       setUser(null);

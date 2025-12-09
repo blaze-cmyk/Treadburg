@@ -4,13 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { apiClient } from "@/lib/api-client";
 import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PRODUCTION_URL } from "@/lib/constants";
-import { getOAuthRedirectUrl } from "@/lib/auth-helpers";
 
 export default function SignupPage() {
   const { isAuthenticated, isLoading } = useUser();
@@ -70,27 +68,19 @@ export default function SignupPage() {
     setLoading(true);
     
     try {
-      // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-          },
-          emailRedirectTo: `${PRODUCTION_URL}/auth/callback`
-        }
-      });
+      // Sign up through backend API
+      const response = await apiClient.register(email, password, name);
       
-      if (error) {
-        setError(error.message);
-      } else {
-        setSuccessMessage("Please check your email to verify your account.");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-        setName("");
-      }
+      setSuccessMessage("Registration successful! Please check your email to verify your account.");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setName("");
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
     } catch (err: any) {
       setError(err?.message || "An unexpected error occurred");
     } finally {
@@ -101,27 +91,7 @@ export default function SignupPage() {
   const handleGoogleSignup = async () => {
     try {
       setLoading(true);
-      
-      // Import the helper functions
-      const { getOAuthRedirectUrl, getGoogleOAuthOptions } = await import('@/lib/auth-helpers');
-      
-      // Get the redirect URL and OAuth options
-      const redirectTo = getOAuthRedirectUrl();
-      console.log('Using OAuth redirect URL:', redirectTo);
-      
-      // Create a new Supabase session with explicit options
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          ...getGoogleOAuthOptions()
-        }
-      });
-      
-      if (error) {
-        setError(error.message);
-      }
-      
+      setError("Google OAuth signup is currently only available through the login page. Please use email/password signup or go to the login page for Google signup.");
     } catch (err: any) {
       console.error('Google signup error:', err);
       setError(err?.message || 'Failed to sign up with Google');

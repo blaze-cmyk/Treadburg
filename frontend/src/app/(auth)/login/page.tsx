@@ -5,7 +5,8 @@ import { TrendingUp, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase, auth } from "@/lib/supabase";
+import { apiClient } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase";
 import TradeBerg from "@/components/icons/TradeBerg";
 import { motion } from "framer-motion";
 
@@ -33,16 +34,15 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Check if user is already logged in or handle authentication success/errors
+  // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
       try {
         console.log('Checking for existing session...');
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          console.log('User already has a session, redirecting to home');
-          // User is logged in, redirect to home
-          router.push('/');
+        const token = apiClient.getAuthToken();
+        if (token) {
+          console.log('User already has a token, redirecting to dashboard');
+          router.push('/dashboard');
         }
       } catch (err) {
         console.error('Error checking session:', err);
@@ -237,43 +237,26 @@ function LoginContent() {
 
             try {
               if (isLogin) {
-                // Login with Supabase directly
+                // Login through backend API
                 console.log('Attempting to sign in with email:', email);
-                const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                  email,
-                  password,
-                });
+                const response = await apiClient.login(email, password);
 
-                if (signInError) {
-                  console.error('Login error:', signInError);
-                  setError(signInError.message);
-                } else if (data.session) {
-                  console.log('Login successful, redirecting to dashboard');
-                  
-                  // Clear any error messages
-                  setError("");
-                  
-                  // Redirect to dashboard after successful login
-                  window.location.href = '/dashboard';
-                }
+                console.log('Login successful, redirecting to dashboard');
+                
+                // Clear any error messages
+                setError("");
+                
+                // Redirect to dashboard after successful login
+                window.location.href = '/dashboard';
               } else {
-                // Sign up with Supabase directly
+                // Sign up through backend API
                 console.log('Attempting to sign up with email:', email);
-                const { data, error: signUpError } = await supabase.auth.signUp({
-                  email,
-                  password,
-                  options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
-                  },
-                });
+                const response = await apiClient.register(email, password);
 
-                if (signUpError) {
-                  console.error('Signup error:', signUpError);
-                  setError(signUpError.message);
-                } else {
-                  setError("");
-                  alert("Check your email to confirm your account!");
-                }
+                setError("");
+                alert("Registration successful! Please check your email to confirm your account.");
+                // Switch to login mode
+                setIsLogin(true);
               }
             } catch (err: any) {
               console.error("Authentication error:", err);
@@ -338,13 +321,8 @@ function LoginContent() {
 
                     setLoading(true);
                     try {
-                      const { error } = await auth.resetPassword(email);
-
-                      if (error) {
-                        alert(`Error: ${error.message}`);
-                      } else {
-                        alert("Password reset email sent. Please check your inbox.");
-                      }
+                      await apiClient.resetPassword(email);
+                      alert("Password reset email sent. Please check your inbox.");
                     } catch (err: any) {
                       console.error("Password reset error:", err);
                       alert(err?.message || "An error occurred. Please try again.");

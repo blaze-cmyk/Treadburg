@@ -40,6 +40,12 @@ export function MainNav({ className }: MainNavProps) {
       public: true,
     },
     {
+      href: "/chat",
+      label: "AI Chat",
+      active: pathname === "/chat",
+      public: false,
+    },
+    {
       href: "/market",
       label: "Markets",
       active: pathname === "/market",
