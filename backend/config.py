@@ -62,15 +62,16 @@ class Settings(BaseSettings):
         # Always use these CORS origins (ignore environment variable)
         return [
             "http://localhost:3000",
-            "http://localhost:3002",  # Frontend running on port 3002
+            "http://localhost:3002",
             "http://localhost:5173",
             "http://localhost:5174",
-            "http://localhost:10000",  # Next.js dev server on port 10000
+            "http://localhost:10000",
             "http://127.0.0.1:3000",
             "http://127.0.0.1:3002",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:10000",
-            "https://tradeberg-frontend.onrender.com",  # Production frontend on Render
+            "https://tradeberg-frontend.onrender.com",
+            "https://tradeberg-frontend-qwx0.onrender.com",  # New Render frontend URL
         ]
 
 # Create settings instance
