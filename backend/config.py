@@ -58,10 +58,8 @@ class Settings(BaseSettings):
         extra = "ignore"
     
     def get_cors_origins(self) -> List[str]:
-        """Get CORS origins as a list"""
-        if self.CORS_ORIGINS:
-            return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-        # Default CORS origins (development + production)
+        """Get CORS origins as a list - always use hardcoded values for production"""
+        # Always use these CORS origins (ignore environment variable)
         return [
             "http://localhost:3000",
             "http://localhost:3002",  # Frontend running on port 3002
