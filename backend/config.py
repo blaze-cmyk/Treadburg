@@ -72,8 +72,7 @@ class Settings(BaseSettings):
             "http://127.0.0.1:3002",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:10000",
-            "https://tradeberg-frontend.onrender.com",  # Production frontend
-            "https://supa.vercel.app",  # Alternative frontend
+            "https://tradeberg-frontend.onrender.com",  # Production frontend on Render
         ]
 
 # Create settings instance
