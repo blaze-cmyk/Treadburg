@@ -99,25 +99,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = csp
         
         return response
-
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Configure CORS for React frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.get_cors_origins(),
-async def health_check():
-    """Health check endpoint"""
-    return JSONResponse({
-        "status": "healthy",
-        "service": "TradeBerg API"
-    })
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app:app",
-        host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG
     )
