@@ -47,7 +47,7 @@ const nextConfig = {
                             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                             "img-src 'self' data: https: blob:",
                             "font-src 'self' data: https://fonts.gstatic.com",
-                            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co https://auth-cdn.oaistatic.com https://treadburg.onrender.com http://localhost:8080 http://127.0.0.1:8080",
+                            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co https://auth-cdn.oaistatic.com https://treadburg.onrender.com https://tradeberg-frontend-qwx0.onrender.com http://localhost:8080 http://127.0.0.1:8080 https://accounts.google.com",
                             "media-src 'self' blob:",
                             "object-src 'none'",
                             "base-uri 'self'",
@@ -80,6 +80,8 @@ const nextConfig = {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
         NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
         NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://tradeberg-frontend-qwx0.onrender.com',
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://tradeberg-frontend-qwx0.onrender.com',
     },
 
     // Production optimizations
