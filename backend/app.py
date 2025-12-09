@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     print(f"🌐 CORS Origins: {settings.get_cors_origins()}")
     
     # Temporarily disabled database initialization - will connect when needed
-    # init_db()
+    init_db()
     print("⚠️  Database initialization skipped - will connect on first API call")
 
     # Temporarily disabled ingestion worker - requires Gemini API key
