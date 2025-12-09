@@ -248,25 +248,13 @@ function LoginContent() {
                   console.error('Login error:', signInError);
                   setError(signInError.message);
                 } else if (data.session) {
-                  console.log('Login successful, checking for redirect');
-                  // Check if we have a redirect cookie
-                  const cookies = document.cookie.split(';');
-                  let redirectPath = '/';
+                  console.log('Login successful, redirecting to dashboard');
                   
-                  for (const cookie of cookies) {
-                    const [name, value] = cookie.trim().split('=');
-                    if (name === 'redirect_after_login' && value) {
-                      // We have a redirect path
-                      redirectPath = decodeURIComponent(value);
-                      console.log('Redirecting to stored path:', redirectPath);
-                      // Clear the cookie
-                      document.cookie = 'redirect_after_login=; max-age=0; path=/';
-                      break;
-                    }
-                  }
+                  // Clear any error messages
+                  setError("");
                   
-                  // Use replace instead of push to prevent back navigation to login
-                  router.replace(redirectPath);
+                  // Redirect to dashboard after successful login
+                  window.location.href = '/dashboard';
                 }
               } else {
                 // Sign up with Supabase directly

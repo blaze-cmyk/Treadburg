@@ -6,6 +6,7 @@ import ThemeProvider from "@/components/providers/theme-provider";
 import SmoothScrollProvider from "@/components/providers/smooth-scroll-provider";
 import CursorGlowProvider from "@/components/providers/cursor-glow-provider";
 import { UserProvider } from "@/contexts/UserContext";
+import { MainNav } from "@/components/navigation/MainNav";
 
 // FK Grotesk as the primary sans font for the entire app.
 // We bind it to --font-geist-sans so existing theme config keeps working.
@@ -98,7 +99,22 @@ export default function RootLayout({
         <ThemeProvider>
           <UserProvider>
             <SmoothScrollProvider>
-              <CursorGlowProvider>{children}</CursorGlowProvider>
+              <CursorGlowProvider>
+                <div className="flex min-h-screen flex-col">
+                  <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md">
+                    {/* @ts-expect-error - MainNav is a client component imported in a server component */}
+                    <MainNav />
+                  </header>
+                  <main className="flex-1">{children}</main>
+                  <footer className="border-t py-6 md:py-0">
+                    <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
+                      <p className="text-sm text-muted-foreground">
+                        &copy; {new Date().getFullYear()} TradeBerg. All rights reserved.
+                      </p>
+                    </div>
+                  </footer>
+                </div>
+              </CursorGlowProvider>
             </SmoothScrollProvider>
           </UserProvider>
         </ThemeProvider>

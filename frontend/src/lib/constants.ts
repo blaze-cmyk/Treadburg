@@ -7,7 +7,7 @@ export const PRODUCTION_URL = 'https://tradeberg-frontend.onrender.com';
 
 // OAuth settings
 export const OAUTH_REDIRECT_PATH = '/auth/callback';
-export const OAUTH_SUCCESS_PATH = '/';
+export const OAUTH_SUCCESS_PATH = '/dashboard';
 
 // Error and status messages
 export const ERROR_MESSAGES = {
