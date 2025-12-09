@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 // Use environment variables for Supabase configuration (Render deployment ready)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pcxscejarxztezfeucgs.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjeHNjZWphcnh6dGV6ZmV1Y2dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NTMwOTcsImV4cCI6MjA3ODUyOTA5N30.tMERXgpNtF88ywJhH0t62SAudTk4iYu_Xv0xgGg-Ll0'
 
-// Create the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create the Supabase client (Browser Client for persistent cookies)
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 // Get the app URL for redirects (works in both browser and server)
 const getAppUrl = () => {
@@ -16,7 +16,7 @@ const getAppUrl = () => {
     if (envUrl) return envUrl;
     return window.location.origin;
   }
-  
+
   // On the server, use environment variables or fall back to the production URL
   return (
     process.env.NEXTAUTH_URL ||
