@@ -47,7 +47,7 @@ const nextConfig = {
                             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                             "img-src 'self' data: https: blob:",
                             "font-src 'self' data: https://fonts.gstatic.com",
-                            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co https://auth-cdn.oaistatic.com https://tradeberg-backend.railway.app http://localhost:8080 http://127.0.0.1:8080",
+                            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co https://auth-cdn.oaistatic.com https://treadburg.onrender.com http://localhost:8080 http://127.0.0.1:8080",
                             "media-src 'self' blob:",
                             "object-src 'none'",
                             "base-uri 'self'",
