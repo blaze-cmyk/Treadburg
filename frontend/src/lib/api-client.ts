@@ -13,8 +13,12 @@ export function setAuthToken(token: string | null) {
   authToken = token;
   if (token) {
     localStorage.setItem('auth_token', token);
+    // Also set as cookie for middleware access
+    document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
   } else {
     localStorage.removeItem('auth_token');
+    // Remove cookie
+    document.cookie = 'auth_token=; path=/; max-age=0';
   }
 }
 

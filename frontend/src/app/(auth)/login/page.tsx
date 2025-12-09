@@ -246,8 +246,8 @@ function LoginContent() {
                 // Clear any error messages
                 setError("");
                 
-                // Redirect to dashboard after successful login
-                router.push('/dashboard');
+                // Force a full page reload to dashboard to ensure clean state
+                window.location.href = '/dashboard';
               } else {
                 // Sign up through backend API
                 console.log('Attempting to sign up with email:', email);

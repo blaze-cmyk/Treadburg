@@ -1,4 +1,3 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -10,34 +9,8 @@ export async function middleware(req: NextRequest) {
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
-
-  // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession()
+  // Check for auth token in cookies (set by the frontend after login)
+  const authToken = req.cookies.get('auth_token')?.value
 
   // Public paths that don't require authentication
   const publicPaths = ['/login', '/reset-password', '/auth/callback']
@@ -58,7 +31,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Check authentication status for protected routes
-  if (!session && !isPublicPath) {
+  if (!authToken && !isPublicPath) {
     // Redirect unauthenticated users to login page
     const origin = getOrigin(req);
     const redirectUrl = new URL('/login', origin)
@@ -75,10 +48,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is authenticated and trying to access login page, redirect to home
-  if (session && isPublicPath && !req.nextUrl.pathname.startsWith('/auth/callback')) {
+  // If user is authenticated and trying to access login page, redirect to dashboard
+  if (authToken && isPublicPath && !req.nextUrl.pathname.startsWith('/auth/callback')) {
     const origin = getOrigin(req);
-    return NextResponse.redirect(new URL('/', origin))
+    return NextResponse.redirect(new URL('/dashboard', origin))
   }
 
   return response
