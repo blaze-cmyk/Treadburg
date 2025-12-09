@@ -28,9 +28,8 @@ async def lifespan(app: FastAPI):
     print(f"📡 Environment: {settings.ENVIRONMENT}")
     print(f"🌐 CORS Origins: {settings.get_cors_origins()}")
     
-    # Temporarily disabled database initialization - will connect when needed
+    # Initialize database tables if not using Supabase REST API
     init_db()
-    print("⚠️  Database initialization skipped - will connect on first API call")
 
     # Temporarily disabled ingestion worker - requires Gemini API key
     # import asyncio
@@ -62,7 +61,10 @@ app.add_middleware(SlowAPIMiddleware)
 if settings.ENVIRONMENT == "production":
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["tradeberg.com", "*.tradeberg.com", "localhost"]
+        allowed_hosts=[
+            "tradeberg.com", "*.tradeberg.com", "localhost",
+            "*.onrender.com", "treadburg.onrender.com", "tradeberg-frontend.onrender.com"
+        ]
     )
 
 # Security: Request size validation
@@ -94,7 +96,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co;"
+            "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co "
+            "https://tradeberg-frontend.onrender.com https://*.onrender.com;"
         )
         response.headers["Content-Security-Policy"] = csp
         

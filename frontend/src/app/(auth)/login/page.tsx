@@ -307,12 +307,25 @@ function LoginContent() {
               className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]"
               onClick={async () => {
                 try {
+                  // Direct approach - no window.location or environment variables
+                  console.log('Starting Google OAuth...');
+                  
+                  // We're hardcoding the URL directly as a final solution
                   const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${window.location.origin}/auth/callback`
+                      redirectTo: 'https://tradeberg-frontend.onrender.com/auth/callback',
+                      // Add scopes to ensure we get the right permissions
+                      scopes: 'email profile',
+                      // Explicitly set the queryParams to avoid any default behavior
+                      queryParams: {
+                        access_type: 'online',
+                        prompt: 'select_account'
+                      }
                     }
                   });
+                  
+                  console.log('OAuth initiated:');
 
                   if (error) {
                     setError(error.message);

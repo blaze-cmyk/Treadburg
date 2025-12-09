@@ -55,6 +55,9 @@ def init_db():
     from models.document import DocumentChunk
     from models.ingestion import IngestionStatus
     
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    # Create all tables only if engine is configured (not using Supabase REST API)
+    if engine is not None:
+        Base.metadata.create_all(bind=engine)
+    else:
+        print("⚠️ Database initialization skipped - will connect on first API call")
 

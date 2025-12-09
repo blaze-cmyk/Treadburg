@@ -9,10 +9,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Get the app URL for redirects (works in both browser and server)
 const getAppUrl = () => {
+  // In the browser, prioritize environment variables over window.location.origin
+  // This helps when the app is accessed via different URLs (like localhost in dev vs production URL)
   if (typeof window !== 'undefined') {
-    return window.location.origin
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+    if (envUrl) return envUrl;
+    return window.location.origin;
   }
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://tradeberg-frontend.onrender.com'
+  
+  // On the server, use environment variables or fall back to the production URL
+  return (
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://tradeberg-frontend.onrender.com'
+  );
 }
 
 // Auth helper functions
