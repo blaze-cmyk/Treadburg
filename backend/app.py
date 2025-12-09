@@ -99,6 +99,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = csp
         
         return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS Configuration
+# Must be added last to ensure it wraps other middlewares correctly
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include API routes
+app.include_router(api_router, prefix="/api")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
         port=settings.PORT,
         reload=settings.DEBUG
     )
