@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { TrendingUp, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -18,7 +18,8 @@ const tradingPrompts = [
   "Show me portfolio diversification strategies",
 ];
 
-export default function Login() {
+// Wrap the main content in a component that uses useSearchParams
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
@@ -360,5 +361,26 @@ export default function Login() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback for Suspense
+function LoginLoading() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-[#0a0a0a]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Default export with Suspense wrapper
+export default function Login() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginContent />
+    </Suspense>
   );
 }
