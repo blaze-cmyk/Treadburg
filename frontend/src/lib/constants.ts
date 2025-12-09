@@ -3,7 +3,7 @@
  */
 
 // Production URL - update this when your deployment URL changes
-export const PRODUCTION_URL = 'https://tradeberg-frontend.onrender.com';
+export const PRODUCTION_URL = 'https://tradeberg-frontend-qwx0.onrender.com';
 
 // OAuth settings
 export const OAUTH_REDIRECT_PATH = '/auth/callback';
