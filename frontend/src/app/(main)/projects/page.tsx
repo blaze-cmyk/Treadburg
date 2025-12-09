@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 
+export const dynamic = 'force-dynamic';
+
 const mockProjects = [
   {
     id: "1",

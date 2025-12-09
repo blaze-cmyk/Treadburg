@@ -1,9 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, FileText, Folder, Clock } from "lucide-react";
-import Link from "next/link";
+import { BookOpen, FileText, Video, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
+
+export const dynamic = 'force-dynamic';
 
 const mockLibraryItems = [
   {

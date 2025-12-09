@@ -1,10 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Search as SearchIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { Search, TrendingUp, Clock, Star } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
+
+export const dynamic = 'force-dynamic';
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
