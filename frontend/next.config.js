@@ -1,7 +1,7 @@
-"""
-Frontend security configuration for Next.js
-Implements CSP, security headers, and CSRF protection
-"""
+/**
+ * Frontend security configuration for Next.js
+ * Implements CSP, security headers, and CSRF protection
+ */
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
