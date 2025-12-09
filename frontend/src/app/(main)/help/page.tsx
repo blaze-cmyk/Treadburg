@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { HelpCircle, Book, MessageCircle, Mail } from "lucide-react";
+import { HelpCircle, BookOpen, MessageSquare, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
+import Link from "next/link";
 
 export const dynamic = 'force-dynamic';
-import Link from "next/link";
 
 export default function HelpPage() {
   const scrollRef = useMouseWheelScroll<HTMLDivElement>();
