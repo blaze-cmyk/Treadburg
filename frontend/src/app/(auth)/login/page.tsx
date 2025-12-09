@@ -25,13 +25,13 @@ export default function Login() {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   const [isLogin, setIsLogin] = useState(true);
-  
+
   // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
@@ -40,9 +40,9 @@ export default function Login() {
         router.push('/');
       }
     };
-    
+
     checkSession();
-    
+
     // Check for error params
     const errorType = searchParams?.get('error');
     if (errorType === 'auth_callback_error') {
@@ -140,8 +140,8 @@ export default function Login() {
                 router.push("/");
               }}
               className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${isLogin
-                  ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
-                  : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
+                ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
+                : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
                 }`}
             >
               Log in
@@ -152,8 +152,8 @@ export default function Login() {
                 router.push("/");
               }}
               className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${!isLogin
-                  ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
-                  : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
+                ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
+                : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
                 }`}
             >
               Sign up for free
@@ -184,12 +184,12 @@ export default function Login() {
             e.preventDefault();
             setLoading(true);
             setError("");
-            
+
             try {
               if (isLogin) {
                 // Login with Supabase directly
                 const { data, error: signInError } = await auth.signIn(email, password);
-                
+
                 if (signInError) {
                   setError(signInError.message);
                 } else if (data.session) {
@@ -198,7 +198,7 @@ export default function Login() {
               } else {
                 // Sign up with Supabase directly
                 const { data, error: signUpError } = await auth.signUp(email, password);
-                
+
                 if (signUpError) {
                   setError(signUpError.message);
                 } else {
@@ -240,7 +240,7 @@ export default function Login() {
                 className="w-full py-3 px-4 bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-primary)] rounded-lg border border-[var(--tradeberg-glass-border)] focus:border-[var(--tradeberg-accent-color)] focus:outline-none transition-colors placeholder:text-[var(--tradeberg-text-secondary)]"
               />
             </div>
-            <button 
+            <button
               type="submit"
               disabled={loading}
               className={`w-full py-3 px-4 bg-[var(--tradeberg-accent-color)] hover:opacity-90 text-white rounded-lg font-medium transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
@@ -259,18 +259,18 @@ export default function Login() {
             </button>
             {isLogin && (
               <div className="text-center">
-                <button 
+                <button
                   type="button"
                   onClick={async () => {
                     if (!email) {
                       alert("Please enter your email address");
                       return;
                     }
-                    
+
                     setLoading(true);
                     try {
                       const { error } = await auth.resetPassword(email);
-                      
+
                       if (error) {
                         alert(`Error: ${error.message}`);
                       } else {
@@ -309,10 +309,10 @@ export default function Login() {
                   const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: 'https://tradeberg-frontend.onrender.com/auth/callback'
+                      redirectTo: `${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/auth/callback`
                     }
                   });
-                  
+
                   if (error) {
                     setError(error.message);
                   }

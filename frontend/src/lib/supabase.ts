@@ -15,11 +15,11 @@ export const auth = {
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXTAUTH_URL || 'https://tradeberg-frontend.onrender.com'}/auth/callback`
+        emailRedirectTo: `${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/auth/callback`
       }
     })
   },
-  
+
   // Sign in with email and password
   signIn: async (email: string, password: string) => {
     return supabase.auth.signInWithPassword({
@@ -27,31 +27,31 @@ export const auth = {
       password
     })
   },
-  
+
   // Sign out
   signOut: async () => {
     return supabase.auth.signOut()
   },
-  
+
   // Reset password
   resetPassword: async (email: string) => {
     return supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXTAUTH_URL || 'https://tradeberg-frontend.onrender.com'}/reset-password`,
+      redirectTo: `${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/reset-password`,
     })
   },
-  
+
   // Update password
   updatePassword: async (password: string) => {
     return supabase.auth.updateUser({
       password
     })
   },
-  
+
   // Get current session
   getSession: async () => {
     return supabase.auth.getSession()
   },
-  
+
   // Get current user
   getUser: async () => {
     const { data } = await supabase.auth.getUser()
