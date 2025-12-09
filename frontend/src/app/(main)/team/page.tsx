@@ -23,12 +23,12 @@ export default function TeamPage() {
   const mockTeamMembers = [
     {
       id: "1",
-      name: profile.name,
-      email: profile.email,
+      name: profile?.full_name || "You",
+      email: profile?.email || "your@email.com",
       role: "Owner",
       avatar: getInitials(),
       status: "active",
-      joined: profile.joinDate,
+      joined: profile?.created_at || "Recently",
     },
     {
       id: "2",

@@ -40,7 +40,7 @@ export default function SearchPage() {
           className="glass-strong rounded-2xl p-6 mb-6"
         >
           <div className="relative">
-            <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search for stocks, tickers, trading strategies, or market analysis..."
@@ -70,7 +70,7 @@ export default function SearchPage() {
             transition={{ delay: 0.2 }}
             className="text-center py-12"
           >
-            <SearchIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <p className="text-muted-foreground">
               Start typing to search through your chat history
             </p>
