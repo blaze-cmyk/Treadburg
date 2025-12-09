@@ -274,7 +274,7 @@ export default function Sidepanel() {
           <div className="absolute bottom-14 left-2 right-2 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar)] shadow-xl py-2">
             <div className="px-3 pb-2 flex items-center gap-2 text-xs text-[var(--sidebar-foreground)] opacity-80">
               <UserIcon className="w-4 h-4" />
-              <span className="truncate">{profile.email}</span>
+              <span className="truncate">{profile?.email || 'user@example.com'}</span>
             </div>
             <div className="h-px bg-[var(--sidebar-border)] mx-2 mb-1" />
 
@@ -356,10 +356,10 @@ export default function Sidepanel() {
               })}
             >
               <span className="text-sm text-[var(--sidebar-foreground)]">
-                {profile.name}
+                {profile?.full_name || profile?.email || 'User'}
               </span>
               <span className="text-xs text-[var(--sidebar-foreground)] opacity-60">
-                Free
+                {profile?.subscription_tier || 'Free'}
               </span>
             </div>
           </button>

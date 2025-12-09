@@ -5,6 +5,8 @@ import Sidepanel from "@/components/sidepanel/Sidepanel";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import PageTransitionProvider from "@/components/providers/page-transition-provider";
 
+export const dynamic = 'force-dynamic';
+
 export default function MainLayout({
   children,
 }: {
