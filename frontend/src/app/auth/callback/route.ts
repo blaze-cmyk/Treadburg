@@ -13,17 +13,17 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('Error exchanging code for session:', error)
-        return NextResponse.redirect(`${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/login?error=auth_callback_error`)
+        return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_callback_error`)
       }
 
       // Successfully authenticated
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/?auth=success`)
+      return NextResponse.redirect(`${requestUrl.origin}/?auth=success`)
     } catch (err) {
       console.error('Unexpected error during auth callback:', err)
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/login?error=unexpected`)
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=unexpected`)
     }
   }
 
   // No code provided
-  return NextResponse.redirect(`${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/login`)
+  return NextResponse.redirect(`${requestUrl.origin}/login`)
 }
