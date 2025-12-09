@@ -106,25 +106,6 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods instead of *
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],  # Explicit headers
-    max_age=600,  # Cache preflight requests for 10 minutes
-)
-
-# Include API routes
-app.include_router(api_router, prefix="/api")
-
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return JSONResponse({
-        "message": "TradeBerg API",
-        "version": "1.0.0",
-        "status": "running"
-    })
-
-@app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return JSONResponse({
