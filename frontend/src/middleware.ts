@@ -1,19 +1,47 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // This middleware protects authenticated routes and redirects unauthenticated users
 export async function middleware(req: NextRequest) {
-  // Create a Supabase client configured to use cookies
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
   // Refresh session if expired - required for Server Components
   const { data: { session } } = await supabase.auth.getSession()
 
   // Public paths that don't require authentication
   const publicPaths = ['/login', '/reset-password', '/auth/callback']
-  const isPublicPath = publicPaths.some(path => 
+  const isPublicPath = publicPaths.some(path =>
     req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(`${path}/`)
   )
 
@@ -21,10 +49,10 @@ export async function middleware(req: NextRequest) {
   if (!session && !isPublicPath) {
     // Redirect unauthenticated users to login page
     const redirectUrl = new URL('/login', req.url)
-    
+
     // Add the requested URL as a query param to enable redirection after login
     redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname)
-    
+
     return NextResponse.redirect(redirectUrl)
   }
 
@@ -33,7 +61,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
-  return res
+  return response
 }
 
 // Define which paths this middleware should run on
