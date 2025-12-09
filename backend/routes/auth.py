@@ -4,10 +4,16 @@ Authentication routes - Handles all auth through Supabase
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from services.supabase_client import get_supabase_client
+from supabase import create_client, Client
+from config import settings
 import os
 
 router = APIRouter()
+
+# Initialize Supabase client for auth
+def get_supabase_auth_client() -> Client:
+    """Get Supabase client with auth capabilities"""
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -29,7 +35,7 @@ class TokenResponse(BaseModel):
 async def login(request: LoginRequest):
     """User login endpoint - authenticates via Supabase"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Sign in with Supabase
         response = supabase.auth.sign_in_with_password({
@@ -77,7 +83,7 @@ async def login(request: LoginRequest):
 async def register(request: RegisterRequest):
     """User registration endpoint - creates user in Supabase"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Sign up with Supabase
         response = supabase.auth.sign_up({
@@ -128,7 +134,7 @@ async def logout(authorization: Optional[str] = Header(None)):
     try:
         if authorization and authorization.startswith("Bearer "):
             token = authorization.split(" ")[1]
-            supabase = get_supabase_client()
+            supabase = get_supabase_auth_client()
             supabase.auth.sign_out()
         
         return {"message": "Logged out successfully"}
@@ -143,7 +149,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
             raise HTTPException(status_code=401, detail="Not authenticated")
         
         token = authorization.split(" ")[1]
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Get user from token
         user_response = supabase.auth.get_user(token)
@@ -188,7 +194,7 @@ async def update_profile(
             raise HTTPException(status_code=401, detail="Not authenticated")
         
         token = authorization.split(" ")[1]
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Get user from token
         user_response = supabase.auth.get_user(token)
@@ -228,7 +234,7 @@ class UpdatePasswordRequest(BaseModel):
 async def reset_password(request: ResetPasswordRequest):
     """Send password reset email"""
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Send password reset email
         response = supabase.auth.reset_password_email(request.email)
@@ -255,7 +261,7 @@ async def update_password(
             raise HTTPException(status_code=401, detail="Not authenticated")
         
         token = authorization.split(" ")[1]
-        supabase = get_supabase_client()
+        supabase = get_supabase_auth_client()
         
         # Update password
         response = supabase.auth.update_user({
