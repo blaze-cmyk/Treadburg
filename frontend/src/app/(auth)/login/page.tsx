@@ -310,7 +310,7 @@ function LoginContent() {
                   const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${process.env.NEXTAUTH_URL || 'https://supa.vercel.app'}/auth/callback`
+                      redirectTo: `${window.location.origin}/auth/callback`
                     }
                   });
 
