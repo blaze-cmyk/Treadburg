@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Home, DollarSign, User, MessageSquare, Menu, X, LogOut } from "lucide-react";
+import { Home, DollarSign, User, Menu, X, LogOut } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export function NavigationHeader() {
@@ -15,7 +14,7 @@ export function NavigationHeader() {
     const router = useRouter();
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        await fetch('/api/auth/logout', { method: 'POST' });
         router.push("/login");
     };
 
@@ -46,8 +45,8 @@ export function NavigationHeader() {
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
-                                        ? "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-accent-color)]"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-[var(--tradeberg-card-bg)]"
+                                    ? "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-accent-color)]"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-[var(--tradeberg-card-bg)]"
                                     }`}
                             >
                                 <Icon size={16} />
@@ -70,10 +69,10 @@ export function NavigationHeader() {
                     {/* Subscription Tier */}
                     <div
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold ${profile.subscriptionTier === "free"
-                                ? "bg-gray-500/10 text-gray-400"
-                                : profile.subscriptionTier === "pro"
-                                    ? "bg-blue-500/10 text-blue-400"
-                                    : "bg-purple-500/10 text-purple-400"
+                            ? "bg-gray-500/10 text-gray-400"
+                            : profile.subscriptionTier === "pro"
+                                ? "bg-blue-500/10 text-blue-400"
+                                : "bg-purple-500/10 text-purple-400"
                             }`}
                     >
                         {profile.subscriptionTier.charAt(0).toUpperCase() + profile.subscriptionTier.slice(1)}
@@ -111,8 +110,8 @@ export function NavigationHeader() {
                                     href={item.href}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                            ? "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-accent-color)]"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-[var(--tradeberg-card-bg)]"
+                                        ? "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-accent-color)]"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-[var(--tradeberg-card-bg)]"
                                         }`}
                                 >
                                     <Icon size={18} />

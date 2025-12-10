@@ -22,12 +22,12 @@ interface UserContextType {
 }
 
 const defaultProfile: UserProfile = {
-  name: "Harsh Agrawal",
-  email: "harsh@example.com",
-  joinDate: "January 2024",
-  bio: "Active trader and market analyst",
-  location: "Mumbai, India",
-  website: "https://example.com",
+  name: "Guest User",
+  email: "loading...",
+  joinDate: "Recently",
+  bio: "",
+  location: "",
+  website: "",
   subscriptionTier: "free",
   creditsBalance: 0,
 };
@@ -67,47 +67,41 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     try {
-      // Import supabase client
-      const { supabase } = await import('@/lib/supabase');
+      // Get session from backend API (replaces Supabase client)
+      const response = await fetch('/api/auth/session');
+      const data = await response.json();
 
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        console.log('No active session, using default profile');
+      if (!data.success || !data.user) {
+        console.log('No active session from backend');
         return;
       }
 
-      // Fetch profile from backend API
-      const response = await fetch('/api/users/profile');
+      const backendUser = data.user;
+      const userEmail = backendUser.email || 'user@example.com';
+      const userName = backendUser.full_name || userEmail.split('@')[0];
 
-      if (response.ok) {
-        const data = await response.json();
+      console.log('Loaded user from backend session:', {
+        email: userEmail,
+        name: userName
+      });
 
-        if (data.success && data.user) {
-          const backendUser = data.user;
+      // Set profile with real backend data
+      const updatedProfile: Partial<UserProfile> = {
+        email: userEmail,
+        name: userName,
+        subscriptionTier: (backendUser.subscription_tier as "free" | "pro" | "max") || 'free',
+        creditsBalance: backendUser.credits || 0,
+        bio: backendUser.bio || '',
+        location: backendUser.location || '',
+        website: backendUser.website || '',
+        joinDate: backendUser.created_at
+          ? new Date(backendUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : 'Recently',
+      };
 
-          // Map backend data to frontend profile format
-          const updatedProfile: Partial<UserProfile> = {
-            email: backendUser.email || session.user.email,
-            name: backendUser.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-            bio: backendUser.bio || '',
-            location: backendUser.location || '',
-            website: backendUser.website || '',
-            subscriptionTier: (backendUser.subscription_tier as "free" | "pro" | "max") || 'free',
-            creditsBalance: backendUser.credits_balance || backendUser.credits || 0,
-            stripeCustomerId: backendUser.stripe_customer_id,
-            joinDate: backendUser.created_at
-              ? new Date(backendUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-              : 'Recently',
-          };
+      setProfile(prev => ({ ...prev, ...updatedProfile }));
+      console.log('Profile loaded from backend:', updatedProfile);
 
-          setProfile(prev => ({ ...prev, ...updatedProfile }));
-          console.log('Profile refreshed from backend:', updatedProfile);
-        }
-      } else {
-        console.warn('Failed to fetch profile from backend:', response.status);
-      }
     } catch (error) {
       console.error("Failed to refresh profile:", error);
     }

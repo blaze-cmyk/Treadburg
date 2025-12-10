@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { TrendingUp, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Phone, TrendingUp, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase, auth } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 import TradeBerg from "@/components/icons/TradeBerg";
 import { motion } from "framer-motion";
+import { backendAuth } from "@/lib/backend-auth";
 
 const tradingPrompts = [
   "Analyze the current price of @AAPL",
@@ -18,89 +18,31 @@ const tradingPrompts = [
   "Show me portfolio diversification strategies",
 ];
 
-// Wrap the main content in a component that uses useSearchParams
-function LoginContent() {
+export default function Login() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   const [isLogin, setIsLogin] = useState(true);
-
-  // Form state
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Check if user is already logged in or handle authentication success/errors
+  // Form fields
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [showEmailForm, setShowEmailForm] = useState(false);
+
+  // Check if already logged in
   useEffect(() => {
     const checkSession = async () => {
-      try {
-        console.log('Checking for existing session...');
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          console.log('User already has a session, redirecting to home');
-          // User is logged in, redirect to home
-          router.push('/');
-        }
-      } catch (err) {
-        console.error('Error checking session:', err);
+      const response = await backendAuth.getSession();
+      if (response.success && response.user) {
+        router.push("/");
       }
     };
-
     checkSession();
-
-    // Check for auth success or error params
-    const authSuccess = searchParams?.get('auth');
-    const errorType = searchParams?.get('error');
-    const accessToken = searchParams?.get('access_token');
-    
-    // Log auth parameters for debugging
-    if (authSuccess || errorType || accessToken) {
-      console.log('Auth URL parameters detected:', { 
-        authSuccess, 
-        errorType, 
-        hasAccessToken: !!accessToken 
-      });
-    }
-    
-    // Handle successful authentication
-    if (authSuccess === 'success' || accessToken) {
-      console.log('Authentication successful, checking for redirect');
-      
-      // Check if we have a redirect cookie
-      const cookies = document.cookie.split(';');
-      let redirectPath = '/';
-      
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'redirect_after_login' && value) {
-          // We have a redirect path
-          redirectPath = decodeURIComponent(value);
-          console.log('Redirecting to stored path:', redirectPath);
-          // Clear the cookie
-          document.cookie = 'redirect_after_login=; max-age=0; path=/';
-          break;
-        }
-      }
-      
-      // Use replace to avoid back navigation issues
-      router.replace(redirectPath);
-      return;
-    }
-    
-    // Handle authentication errors
-    if (errorType === 'auth_callback_error') {
-      const reason = searchParams?.get('reason');
-      setError(`Authentication failed: ${reason || 'Please try again.'}`);
-    } else if (errorType === 'unexpected') {
-      const message = searchParams?.get('message');
-      setError(`An unexpected error occurred: ${message || 'Please try again.'}`);
-    } else if (errorType === 'no_code') {
-      setError('Authentication process was interrupted. Please try again.');
-    }
-  }, [router, searchParams]);
+  }, [router]);
 
   // Typing animation effect
   useEffect(() => {
@@ -117,17 +59,60 @@ function LoginContent() {
         setIsTyping(false);
         clearInterval(typingInterval);
 
-        // Wait 2 seconds before moving to next prompt
         setTimeout(() => {
           setCurrentPromptIndex((prev) => (prev + 1) % tradingPrompts.length);
         }, 2000);
       }
-    }, 50); // Typing speed (50ms per character)
+    }, 50);
 
     return () => clearInterval(typingInterval);
   }, [currentPromptIndex]);
 
-  // Handle loading state with our own implementation
+  // Handle Google sign in
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await backendAuth.googleInit();
+      if (response.auth_url) {
+        window.location.href = response.auth_url;
+      } else {
+        setError("Failed to initialize Google sign-in");
+        setLoading(false);
+      }
+    } catch (err: any) {
+      setError("Failed to sign in with Google");
+      setLoading(false);
+    }
+  };
+
+  // Handle email auth
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      let response;
+
+      if (isLogin) {
+        response = await backendAuth.login(email, password);
+      } else {
+        response = await backendAuth.signup(email, password, fullName);
+      }
+
+      if (response.success) {
+        router.push("/");
+        router.refresh();
+      } else {
+        setError(response.message || "Authentication failed");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -182,125 +167,130 @@ function LoginContent() {
             </h1>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={() => {
-                setIsLogin(true);
-                router.push("/");
-              }}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${isLogin
-                ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
-                : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
-                }`}
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => {
-                setIsLogin(false);
-                router.push("/");
-              }}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${!isLogin
-                ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
-                : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
-                }`}
-            >
-              Sign up for free
-            </button>
-          </div>
-
-          {/* Try it first link */}
-          <div className="text-center mb-8">
-            <Link
-              href="/"
-              className="text-[var(--tradeberg-text-primary)] text-sm hover:underline"
-            >
-              Try it first
-            </Link>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
-            <span className="text-[var(--tradeberg-text-secondary)] text-xs">
-              OR
-            </span>
-            <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
-          </div>
-
-          {/* Email/Password Form */}
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            setLoading(true);
-            setError("");
-
-            try {
-              if (isLogin) {
-                // Login with Supabase directly
-                console.log('Attempting to sign in with email:', email);
-                const { data, error: signInError } = await supabase.auth.signInWithPassword({
-                  email,
-                  password,
-                });
-
-                if (signInError) {
-                  console.error('Login error:', signInError);
-                  setError(signInError.message);
-                } else if (data.session) {
-                  console.log('Login successful, checking for redirect');
-                  // Check if we have a redirect cookie
-                  const cookies = document.cookie.split(';');
-                  let redirectPath = '/';
-                  
-                  for (const cookie of cookies) {
-                    const [name, value] = cookie.trim().split('=');
-                    if (name === 'redirect_after_login' && value) {
-                      // We have a redirect path
-                      redirectPath = decodeURIComponent(value);
-                      console.log('Redirecting to stored path:', redirectPath);
-                      // Clear the cookie
-                      document.cookie = 'redirect_after_login=; max-age=0; path=/';
-                      break;
-                    }
-                  }
-                  
-                  // Use replace instead of push to prevent back navigation to login
-                  router.replace(redirectPath);
-                }
-              } else {
-                // Sign up with Supabase directly
-                console.log('Attempting to sign up with email:', email);
-                const { data, error: signUpError } = await supabase.auth.signUp({
-                  email,
-                  password,
-                  options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`,
-                  },
-                });
-
-                if (signUpError) {
-                  console.error('Signup error:', signUpError);
-                  setError(signUpError.message);
-                } else {
-                  setError("");
-                  alert("Check your email to confirm your account!");
-                }
-              }
-            } catch (err: any) {
-              console.error("Authentication error:", err);
-              setError(err?.message || "An unexpected error occurred");
-            } finally {
-              setLoading(false);
-            }
-          }} className="space-y-4 mb-6">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-500">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">{error}</span>
+          {!showEmailForm ? (
+            <>
+              {/* Action Buttons */}
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => setIsLogin(true)}
+                  className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${isLogin
+                      ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
+                      : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
+                    }`}
+                >
+                  Log in
+                </button>
+                <button
+                  onClick={() => setIsLogin(false)}
+                  className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${!isLogin
+                      ? "bg-[var(--tradeberg-accent-color)] text-white hover:opacity-90"
+                      : "bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-secondary)] hover:bg-opacity-80 border border-[var(--tradeberg-glass-border)]"
+                    }`}
+                >
+                  Sign up for free
+                </button>
               </div>
-            )}
-            <div>
+
+              {/* Try it first link */}
+              <div className="text-center mb-8">
+                <Link
+                  href="/"
+                  className="text-[var(--tradeberg-text-primary)] text-sm hover:underline"
+                >
+                  Try it first
+                </Link>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
+                <span className="text-[var(--tradeberg-text-secondary)] text-xs">
+                  OR
+                </span>
+                <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
+              </div>
+
+              {/* Social Auth Buttons */}
+              <div className="space-y-3">
+                <button
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                >
+                  <Image
+                    src="https://auth-cdn.oaistatic.com/assets/google-logo-NePEveMl.svg"
+                    width={20}
+                    height={20}
+                    alt="Google Icon"
+                  />
+                  Continue with Google
+                </button>
+
+                <button
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]"
+                  onClick={() => setShowEmailForm(true)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Continue with Email
+                </button>
+
+                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
+                  <Image
+                    src="https://auth-cdn.oaistatic.com/assets/microsoft-logo-BUXxQnXH.svg"
+                    width={20}
+                    height={20}
+                    alt="Microsoft Icon"
+                  />
+                  Continue with Microsoft
+                </button>
+                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
+                  <Image
+                    src="https://auth-cdn.oaistatic.com/assets/apple-logo-vertically-balanced-rwLdlt8P.svg"
+                    width={20}
+                    height={20}
+                    alt="Apple Icon"
+                  />
+                  Continue with Apple
+                </button>
+                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
+                  <Phone width={20} height={20} />
+                  Continue with phone
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Email/Password Form */
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailForm(false);
+                  setError("");
+                }}
+                className="text-[var(--tradeberg-accent-color)] text-sm mb-4 hover:underline"
+              >
+                ← Back to options
+              </button>
+
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
+                  <AlertCircle size={16} />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+
+              {!isLogin && (
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full py-3 px-4 bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-primary)] rounded-lg border border-[var(--tradeberg-glass-border)] focus:border-[var(--tradeberg-accent-color)] focus:outline-none transition-colors placeholder:text-[var(--tradeberg-text-secondary)]"
+                />
+              )}
+
               <input
                 type="email"
                 placeholder="Email address"
@@ -309,8 +299,7 @@ function LoginContent() {
                 required
                 className="w-full py-3 px-4 bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-primary)] rounded-lg border border-[var(--tradeberg-glass-border)] focus:border-[var(--tradeberg-accent-color)] focus:outline-none transition-colors placeholder:text-[var(--tradeberg-text-secondary)]"
               />
-            </div>
-            <div>
+
               <input
                 type="password"
                 placeholder="Password"
@@ -320,126 +309,16 @@ function LoginContent() {
                 minLength={6}
                 className="w-full py-3 px-4 bg-[var(--tradeberg-card-bg)] text-[var(--tradeberg-text-primary)] rounded-lg border border-[var(--tradeberg-glass-border)] focus:border-[var(--tradeberg-accent-color)] focus:outline-none transition-colors placeholder:text-[var(--tradeberg-text-secondary)]"
               />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-3 px-4 bg-[var(--tradeberg-accent-color)] hover:opacity-90 text-white rounded-lg font-medium transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {isLogin ? "Logging in..." : "Signing up..."}
-                </span>
-              ) : (
-                isLogin ? "Log in" : "Sign up"
-              )}
-            </button>
-            {isLogin && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!email) {
-                      alert("Please enter your email address");
-                      return;
-                    }
 
-                    setLoading(true);
-                    try {
-                      const { error } = await auth.resetPassword(email);
-
-                      if (error) {
-                        alert(`Error: ${error.message}`);
-                      } else {
-                        alert("Password reset email sent. Please check your inbox.");
-                      }
-                    } catch (err: any) {
-                      console.error("Password reset error:", err);
-                      alert(err?.message || "An error occurred. Please try again.");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  className="text-[var(--tradeberg-text-secondary)] text-sm hover:text-[var(--tradeberg-text-primary)] transition-colors"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            )}
-          </form>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
-            <span className="text-[var(--tradeberg-text-secondary)] text-xs">
-              OR CONTINUE WITH
-            </span>
-            <div className="flex-1 h-px bg-[var(--tradeberg-glass-border)]"></div>
-          </div>
-
-          {/* Google OAuth Only */}
-          <div>
-            <button
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]"
-              onClick={async () => {
-                try {
-                  setLoading(true);
-                  console.log('Starting Google OAuth...');
-                  
-                  // Import the helper functions
-                  const { getOAuthRedirectUrl, getGoogleOAuthOptions } = await import('@/lib/auth-helpers');
-                  
-                  // Get the redirect URL and OAuth options
-                  const redirectTo = getOAuthRedirectUrl();
-                  console.log('Using OAuth redirect URL:', redirectTo);
-                  
-                  // Create a new Supabase session with explicit options
-                  const { data, error } = await supabase.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                      // Use the helper function to get the redirect URL
-                      redirectTo,
-                      // Use the helper function to get the Google OAuth options
-                      ...getGoogleOAuthOptions()
-                    }
-                  });
-                  
-                  // Log the redirect URL for debugging
-                  if (data?.url) {
-                    console.log('OAuth initiated - redirecting to:', data.url);
-                  } else {
-                    console.log('OAuth initiated but no URL returned');  
-                  }
-
-                  if (error) {
-                    setError(error.message);
-                  }
-                  
-                  // If there's a URL, the OAuth flow is continuing elsewhere, so we can reset loading
-                  if (data?.url) {
-                    // OAuth redirect happens automatically, we don't need to keep the loading state
-                    setLoading(false);
-                  }
-                } catch (err: any) {
-                  console.error('Google login error:', err);
-                  setError(err?.message || 'Failed to sign in with Google');
-                  setLoading(false);
-                }
-              }}
-            >
-              <Image
-                src="https://auth-cdn.oaistatic.com/assets/google-logo-NePEveMl.svg"
-                width={20}
-                height={20}
-                alt="Google Icon"
-              />
-              Continue with Google
-            </button>
-          </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 bg-[var(--tradeberg-accent-color)] hover:opacity-90 text-white rounded-lg font-medium transition-all disabled:opacity-70"
+              >
+                {loading ? (isLogin ? "Logging in..." : "Signing up...") : (isLogin ? "Log in" : "Sign up")}
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Footer */}
@@ -469,26 +348,5 @@ function LoginContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Loading fallback for Suspense
-function LoginLoading() {
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-[#0a0a0a]">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    </div>
-  );
-}
-
-// Default export with Suspense wrapper
-export default function Login() {
-  return (
-    <Suspense fallback={<LoginLoading />}>
-      <LoginContent />
-    </Suspense>
   );
 }
