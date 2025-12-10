@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import {
+
+export const dynamic = 'force-dynamic';
   CheckCircle2,
   XCircle,
   Calendar,

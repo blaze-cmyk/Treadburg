@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 
+export const dynamic = 'force-dynamic';
+
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const scrollRef = useMouseWheelScroll<HTMLDivElement>();
