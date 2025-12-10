@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 declare global {
@@ -9,7 +9,8 @@ declare global {
     }
 }
 
-export function Analytics() {
+// Inner component that uses useSearchParams
+function AnalyticsContent() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
@@ -21,6 +22,11 @@ export function Analytics() {
         }
     }, [pathname, searchParams]);
 
+    return null;
+}
+
+// Main Analytics component wrapped in Suspense
+export function Analytics() {
     // Only render in production
     if (process.env.NODE_ENV !== "production" || !process.env.NEXT_PUBLIC_GA_ID) {
         return null;
@@ -41,6 +47,9 @@ export function Analytics() {
           `,
                 }}
             />
+            <Suspense fallback={null}>
+                <AnalyticsContent />
+            </Suspense>
         </>
     );
 }
