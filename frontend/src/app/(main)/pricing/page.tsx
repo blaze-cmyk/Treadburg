@@ -18,6 +18,8 @@ import { useState, useEffect } from "react";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 interface PricingTier {
   id: string;
   name: string;
@@ -197,8 +199,8 @@ export default function PricingPage() {
             <button
               onClick={() => setBillingPeriod("monthly")}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${billingPeriod === "monthly"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-[var(--tradeberg-text-secondary)] hover:text-[var(--tradeberg-text-primary)]"
+                ? "bg-white text-black shadow-sm"
+                : "text-[var(--tradeberg-text-secondary)] hover:text-[var(--tradeberg-text-primary)]"
                 }`}
             >
               Monthly
@@ -206,8 +208,8 @@ export default function PricingPage() {
             <button
               onClick={() => setBillingPeriod("yearly")}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${billingPeriod === "yearly"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-[var(--tradeberg-text-secondary)] hover:text-[var(--tradeberg-text-primary)]"
+                ? "bg-white text-black shadow-sm"
+                : "text-[var(--tradeberg-text-secondary)] hover:text-[var(--tradeberg-text-primary)]"
                 }`}
             >
               Yearly
@@ -229,8 +231,8 @@ export default function PricingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className={`flex flex-col rounded-2xl p-8 bg-[var(--tradeberg-card-bg)] border shadow-[0_20px_45px_rgba(0,0,0,0.65)] relative ${tier.popular
-                    ? "border-[var(--tradeberg-accent-color)] ring-2 ring-[var(--tradeberg-accent-color)]/20 scale-105"
-                    : "border-[var(--tradeberg-card-border)]"
+                  ? "border-[var(--tradeberg-accent-color)] ring-2 ring-[var(--tradeberg-accent-color)]/20 scale-105"
+                  : "border-[var(--tradeberg-card-border)]"
                   }`}
               >
                 {/* Popular Badge */}
@@ -276,8 +278,8 @@ export default function PricingPage() {
                   onClick={() => handleSubscribe(tier)}
                   disabled={tier.id === "free"}
                   className={`w-full mb-6 rounded-full ${tier.popular
-                      ? "bg-[var(--tradeberg-accent-color)] hover:bg-[var(--tradeberg-accent-color)]/90 text-white"
-                      : "bg-white text-black hover:bg-gray-200"
+                    ? "bg-[var(--tradeberg-accent-color)] hover:bg-[var(--tradeberg-accent-color)]/90 text-white"
+                    : "bg-white text-black hover:bg-gray-200"
                     }`}
                 >
                   {tier.id === "free" ? "Current Plan" : `Get ${tier.name}`}
