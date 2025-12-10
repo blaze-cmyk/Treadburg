@@ -2,8 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-
-export const dynamic = 'force-dynamic';
   Users,
   UserPlus,
   Crown,
@@ -15,6 +13,8 @@ import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useUser } from "@/contexts/UserContext";
+
+export const dynamic = 'force-dynamic';
 
 export default function TeamPage() {
   const { profile, getInitials } = useUser();

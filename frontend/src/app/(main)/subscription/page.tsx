@@ -2,8 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-
-export const dynamic = 'force-dynamic';
   CheckCircle2,
   XCircle,
   Calendar,
@@ -15,6 +13,8 @@ export const dynamic = 'force-dynamic';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
+
+export const dynamic = 'force-dynamic';
 
 const currentSubscription = {
   plan: "Free",
@@ -188,11 +188,10 @@ export default function SubscriptionPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                  className={`glass-strong rounded-2xl p-6 ${
-                    plan.popular
+                  className={`glass-strong rounded-2xl p-6 ${plan.popular
                       ? "ring-2 ring-indigo-500 dark:ring-indigo-400"
                       : ""
-                  }`}
+                    }`}
                 >
                   {plan.popular && (
                     <div className="mb-4">
