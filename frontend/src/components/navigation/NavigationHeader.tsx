@@ -14,8 +14,23 @@ export function NavigationHeader() {
     const router = useRouter();
 
     const handleLogout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        router.push("/login");
+        try {
+            // Call backend logout API to clear cookies
+            await fetch('/api/auth/logout', { method: 'POST' });
+
+            // Clear any local storage/session storage
+            if (typeof window !== 'undefined') {
+                localStorage.clear();
+                sessionStorage.clear();
+            }
+
+            // Force full page reload to reset all state
+            window.location.href = "/login";
+        } catch (error) {
+            console.error("Logout error:", error);
+            // Still redirect even if logout API fails
+            window.location.href = "/login";
+        }
     };
 
     const navItems = [
