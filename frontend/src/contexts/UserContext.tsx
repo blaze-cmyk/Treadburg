@@ -1,139 +1,100 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { apiClient } from "@/lib/api-client";
 
 interface UserProfile {
-  id: string;
-  auth_user_id: string;
+  name: string;
   email: string;
-  full_name: string;
-  bio?: string;
-  country?: string;
-  phone?: string;
-  avatar_url?: string;
-  timezone?: string;
-  language?: string;
-  preferred_assets?: string[];
-  risk_tolerance?: string;
-  trading_experience?: string;
-  subscription_tier?: string;
-  credits_balance?: number;
-  total_credits_purchased?: number;
-  created_at?: string;
-  updated_at?: string;
-  last_login_at?: string;
-  is_active?: boolean;
-  is_verified?: boolean;
-}
-
-interface User {
-  id: string;
-  email: string;
-  email_confirmed_at?: string;
+  joinDate: string;
+  bio: string;
+  location: string;
+  website: string;
+  subscriptionTier: "free" | "pro" | "max";
+  creditsBalance: number;
+  stripeCustomerId?: string;
 }
 
 interface UserContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  profile: UserProfile;
+  updateProfile: (updates: Partial<UserProfile>) => void;
   getInitials: () => string;
-  signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+const defaultProfile: UserProfile = {
+  name: "Harsh Agrawal",
+  email: "harsh@example.com",
+  joinDate: "January 2024",
+  bio: "Active trader and market analyst",
+  location: "Mumbai, India",
+  website: "https://example.com",
+  subscriptionTier: "free",
+  creditsBalance: 0,
+};
 
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const STORAGE_KEY = "tradeberg-user-profile";
 
-  // Check for existing session on mount
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+
+  // Load profile from localStorage on mount, then fetch from backend
   useEffect(() => {
-    checkAuth();
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setProfile({ ...defaultProfile, ...parsed });
+      }
+    } catch (error) {
+      console.error("Failed to load user profile from localStorage:", error);
+    }
+
+    // Fetch latest profile from backend
+    refreshProfile();
   }, []);
 
-  const checkAuth = async () => {
+  // Save profile to localStorage whenever it changes
+  useEffect(() => {
     try {
-      setIsLoading(true);
-      const token = apiClient.getAuthToken();
-      
-      if (!token) {
-        setUser(null);
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
-      // Get current user from backend
-      const response = await apiClient.getCurrentUser();
-      setUser(response.user);
-      setProfile(response.profile);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
     } catch (error) {
-      console.error("Auth check failed:", error);
-      // Clear invalid token
-      apiClient.setAuthToken(null);
-      setUser(null);
-      setProfile(null);
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to save user profile to localStorage:", error);
     }
-  };
-
-
-  // Update profile through backend
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user || !profile) return;
-    
-    try {
-      // Update profile through backend API
-      const response = await apiClient.updateUserProfile(updates);
-      
-      // Update local state with response
-      if (response.profile) {
-        setProfile(response.profile);
-      } else {
-        // Fallback: update local state
-        setProfile(prev => prev ? { ...prev, ...updates } : null);
-      }
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      throw error;
-    }
-  };
+  }, [profile]);
 
   const refreshProfile = async () => {
-    await checkAuth();
+    try {
+      // TODO: Get user ID from auth session
+      // For now, we'll skip the backend call if not authenticated
+      // In production, this should fetch from /api/users/profile
+
+      // Example:
+      // const response = await fetch('/api/users/profile');
+      // if (response.ok) {
+      //   const data = await response.json();
+      //   setProfile(prev => ({ ...prev, ...data }));
+      // }
+    } catch (error) {
+      console.error("Failed to refresh profile:", error);
+    }
   };
 
-  const signOut = async () => {
-    try {
-      console.log("Signing out user...");
-      await apiClient.logout();
-      
-      // Clear local state
-      setUser(null);
-      setProfile(null);
-      
-      console.log("User signed out successfully");
-      
-      // Redirect to login page
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    } catch (error) {
-      console.error("Error during sign out:", error);
-    }
+  const updateProfile = (updates: Partial<UserProfile>) => {
+    setProfile((prev) => ({ ...prev, ...updates }));
+
+    // TODO: Send updates to backend
+    // fetch('/api/users/profile', {
+    //   method: 'PUT',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(updates),
+    // });
   };
 
   const getInitials = () => {
-    if (!profile || !profile.full_name) return "U";
-    
-    const names = profile.full_name.trim().split(" ");
+    const names = profile.name.trim().split(" ");
     if (names.length === 0) return "U";
     if (names.length === 1) return names[0].charAt(0).toUpperCase();
     return (
@@ -142,16 +103,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{
-      user,
-      profile,
-      isLoading,
-      isAuthenticated: !!user,
-      updateProfile,
-      getInitials,
-      signOut,
-      refreshProfile
-    }}>
+    <UserContext.Provider value={{ profile, updateProfile, getInitials, refreshProfile }}>
       {children}
     </UserContext.Provider>
   );

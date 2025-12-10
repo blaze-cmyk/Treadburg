@@ -5,8 +5,7 @@ import { TrendingUp, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiClient } from "@/lib/api-client";
-import { supabase } from "@/lib/supabase";
+import { supabase, auth } from "@/lib/supabase";
 import TradeBerg from "@/components/icons/TradeBerg";
 import { motion } from "framer-motion";
 
@@ -34,15 +33,16 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Check if user is already logged in
+  // Check if user is already logged in or handle authentication success/errors
   useEffect(() => {
     const checkSession = async () => {
       try {
         console.log('Checking for existing session...');
-        const token = apiClient.getAuthToken();
-        if (token) {
-          console.log('User already has a token, redirecting to dashboard');
-          router.push('/dashboard');
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          console.log('User already has a session, redirecting to home');
+          // User is logged in, redirect to home
+          router.push('/');
         }
       } catch (err) {
         console.error('Error checking session:', err);
@@ -237,26 +237,55 @@ function LoginContent() {
 
             try {
               if (isLogin) {
-                // Login through backend API
+                // Login with Supabase directly
                 console.log('Attempting to sign in with email:', email);
-                const response = await apiClient.login(email, password);
+                const { data, error: signInError } = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
+                });
 
-                console.log('Login successful, redirecting to dashboard');
-                
-                // Clear any error messages
-                setError("");
-                
-                // Force a full page reload to dashboard to ensure clean state
-                window.location.href = '/dashboard';
+                if (signInError) {
+                  console.error('Login error:', signInError);
+                  setError(signInError.message);
+                } else if (data.session) {
+                  console.log('Login successful, checking for redirect');
+                  // Check if we have a redirect cookie
+                  const cookies = document.cookie.split(';');
+                  let redirectPath = '/';
+                  
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'redirect_after_login' && value) {
+                      // We have a redirect path
+                      redirectPath = decodeURIComponent(value);
+                      console.log('Redirecting to stored path:', redirectPath);
+                      // Clear the cookie
+                      document.cookie = 'redirect_after_login=; max-age=0; path=/';
+                      break;
+                    }
+                  }
+                  
+                  // Use replace instead of push to prevent back navigation to login
+                  router.replace(redirectPath);
+                }
               } else {
-                // Sign up through backend API
+                // Sign up with Supabase directly
                 console.log('Attempting to sign up with email:', email);
-                const response = await apiClient.register(email, password);
+                const { data, error: signUpError } = await supabase.auth.signUp({
+                  email,
+                  password,
+                  options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                  },
+                });
 
-                setError("");
-                alert("Registration successful! Please check your email to confirm your account.");
-                // Switch to login mode
-                setIsLogin(true);
+                if (signUpError) {
+                  console.error('Signup error:', signUpError);
+                  setError(signUpError.message);
+                } else {
+                  setError("");
+                  alert("Check your email to confirm your account!");
+                }
               }
             } catch (err: any) {
               console.error("Authentication error:", err);
@@ -321,8 +350,13 @@ function LoginContent() {
 
                     setLoading(true);
                     try {
-                      await apiClient.resetPassword(email);
-                      alert("Password reset email sent. Please check your inbox.");
+                      const { error } = await auth.resetPassword(email);
+
+                      if (error) {
+                        alert(`Error: ${error.message}`);
+                      } else {
+                        alert("Password reset email sent. Please check your inbox.");
+                      }
                     } catch (err: any) {
                       console.error("Password reset error:", err);
                       alert(err?.message || "An error occurred. Please try again.");

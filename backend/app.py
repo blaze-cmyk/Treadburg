@@ -1,7 +1,6 @@
 """
 TradeBerg Backend API
 Main FastAPI application for React frontend
-Version: 1.0.1
 """
 import os
 from contextlib import asynccontextmanager

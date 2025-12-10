@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}/login?error=auth_callback_error&reason=${encodeURIComponent(error.message)}`)
       }
 
-      // Successfully authenticated - redirect to dashboard
-      return NextResponse.redirect(`${origin}/dashboard`)
+      // Successfully authenticated
+      return NextResponse.redirect(`${origin}/?auth=success`)
     } catch (err: any) {
       console.error('Unexpected error during auth callback:', err)
       return NextResponse.redirect(`${origin}/login?error=unexpected&message=${encodeURIComponent(err?.message || 'Unknown error')}`)

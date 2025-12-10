@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { TrendingUp, AlertCircle, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiClient } from "@/lib/api-client";
+import { supabase, auth } from "@/lib/supabase";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -31,15 +31,19 @@ export default function ResetPassword() {
     setError("");
     
     try {
-      await apiClient.updatePassword(password);
+      const { error } = await auth.updatePassword(password);
       
-      setSuccess(true);
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
-    } catch (err: any) {
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess(true);
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+      }
+    } catch (err) {
       console.error("Password reset error:", err);
-      setError(err?.message || "An unexpected error occurred");
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
