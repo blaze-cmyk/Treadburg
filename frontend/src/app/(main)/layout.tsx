@@ -4,6 +4,7 @@ import Header from "@/components/header/Header";
 import Sidepanel from "@/components/sidepanel/Sidepanel";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import PageTransitionProvider from "@/components/providers/page-transition-provider";
+import { NavigationHeader } from "@/components/navigation/NavigationHeader";
 
 export default function MainLayout({
   children,
@@ -16,9 +17,9 @@ export default function MainLayout({
         <Sidepanel />
       </div>
       <div className="flex-1 flex flex-col h-[100vh] relative overflow-hidden bg-background">
-        <div className="flex-shrink-0">
-          <Header />
-        </div>
+        {/* Use new NavigationHeader instead of old Header */}
+        <NavigationHeader />
+
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <PageTransitionProvider>{children}</PageTransitionProvider>
         </div>

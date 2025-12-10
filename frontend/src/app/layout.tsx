@@ -6,6 +6,8 @@ import ThemeProvider from "@/components/providers/theme-provider";
 import SmoothScrollProvider from "@/components/providers/smooth-scroll-provider";
 import CursorGlowProvider from "@/components/providers/cursor-glow-provider";
 import { UserProvider } from "@/contexts/UserContext";
+import { ErrorBoundary } from "@/components/providers/ErrorBoundary";
+import { Analytics } from "@/components/providers/Analytics";
 
 // FK Grotesk as the primary sans font for the entire app.
 // We bind it to --font-geist-sans so existing theme config keeps working.
@@ -95,13 +97,18 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <ThemeProvider>
-          <UserProvider>
-            <SmoothScrollProvider>
-              <CursorGlowProvider>{children}</CursorGlowProvider>
-            </SmoothScrollProvider>
-          </UserProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <UserProvider>
+              <SmoothScrollProvider>
+                <CursorGlowProvider>
+                  {children}
+                  <Analytics />
+                </CursorGlowProvider>
+              </SmoothScrollProvider>
+            </UserProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

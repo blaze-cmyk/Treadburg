@@ -108,22 +108,22 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({ message, isLast }) =
                     {message.content ? (
                         <ReactMarkdown
                             components={{
-                                a: ({ node, ...props }) => <a {...props} className="text-[var(--tradeberg-accent-color)] hover:underline cursor-pointer" target="_blank" />,
-                                h1: ({ node, ...props }) => <h1 {...props} className="text-xl font-medium text-[var(--tradeberg-text-primary)] mt-6 mb-3" />,
-                                h2: ({ node, ...props }) => <h2 {...props} className="text-lg font-medium text-[var(--tradeberg-text-primary)] mt-8 mb-4 flex items-center gap-2 border-b border-[var(--tradeberg-card-border)] pb-2" />,
-                                h3: ({ node, ...props }) => <h3 {...props} className="text-base font-medium text-[var(--tradeberg-text-primary)] mt-6 mb-2" />,
-                                ul: ({ node, ordered, ...props }: any) => <ul {...props} className="list-disc pl-5 mb-4 space-y-1 text-[var(--tradeberg-text-primary)]/90" />,
-                                ol: ({ node, ordered, ...props }: any) => <ol {...props} className="list-decimal pl-5 mb-4 space-y-1 text-[var(--tradeberg-text-primary)]/90" />,
-                                li: ({ node, ordered, ...props }: any) => {
+                                a: ({ ...props }) => <a {...props} className="text-[var(--tradeberg-accent-color)] hover:underline cursor-pointer" target="_blank" />,
+                                h1: ({ ...props }) => <h1 {...props} className="text-xl font-medium text-[var(--tradeberg-text-primary)] mt-6 mb-3" />,
+                                h2: ({ ...props }) => <h2 {...props} className="text-lg font-medium text-[var(--tradeberg-text-primary)] mt-8 mb-4 flex items-center gap-2 border-b border-[var(--tradeberg-card-border)] pb-2" />,
+                                h3: ({ ...props }) => <h3 {...props} className="text-base font-medium text-[var(--tradeberg-text-primary)] mt-6 mb-2" />,
+                                ul: ({ ...props }: any) => <ul {...props} className="list-disc pl-5 mb-4 space-y-1 text-[var(--tradeberg-text-primary)]/90" />,
+                                ol: ({ ...props }: any) => <ol {...props} className="list-decimal pl-5 mb-4 space-y-1 text-[var(--tradeberg-text-primary)]/90" />,
+                                li: ({ ...props }: any) => {
                                     // Don't pass 'ordered' to DOM - it's just metadata from react-markdown
                                     return <li {...props} className="pl-1" />;
                                 },
-                                p: ({ node, ...props }) => <p {...props} className="mb-4 text-[var(--tradeberg-text-primary)]/90" />,
-                                strong: ({ node, ...props }) => <strong {...props} className="font-semibold text-[var(--tradeberg-text-primary)] text-[var(--tradeberg-accent-color)]/90" />,
-                                pre: ({ node, ...props }) => <pre {...props} className="bg-[var(--tradeberg-card-bg)] border border-[var(--tradeberg-card-border)] rounded-lg p-4 overflow-x-auto my-4" />,
+                                p: ({ ...props }) => <p {...props} className="mb-4 text-[var(--tradeberg-text-primary)]/90" />,
+                                strong: ({ ...props }) => <strong {...props} className="font-semibold text-[var(--tradeberg-text-primary)] text-[var(--tradeberg-accent-color)]/90" />,
+                                pre: ({ ...props }) => <pre {...props} className="bg-[var(--tradeberg-card-bg)] border border-[var(--tradeberg-card-border)] rounded-lg p-4 overflow-x-auto my-4" />,
 
                                 // Custom renderer for code blocks to catch chart and table blocks
-                                code: ({ node, className, children, ...props }: any) => {
+                                code: ({ className, children, ...props }: any) => {
                                     const match = /language-(\w+)/.exec(className || '');
                                     const language = match ? match[1] : '';
 
@@ -167,19 +167,19 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({ message, isLast }) =
                                 },
 
                                 // Custom "Liquid Glass" Table Style
-                                table: ({ node, ...props }) => (
+                                table: ({ ...props }) => (
                                     <div className="w-full my-6 glass-panel rounded-xl overflow-hidden border border-white/5 shadow-2xl">
                                         <div className="overflow-x-auto">
                                             <table {...props} className="w-full text-sm text-left border-collapse" />
                                         </div>
                                     </div>
                                 ),
-                                thead: ({ node, ...props }) => <thead {...props} className="bg-white/5 text-[var(--tradeberg-text-secondary)] uppercase text-xs font-medium tracking-wider" />,
-                                th: ({ node, ...props }) => <th {...props} className="px-6 py-4 font-semibold text-[var(--tradeberg-text-primary)] border-b border-white/10" />,
-                                tbody: ({ node, ...props }) => <tbody {...props} className="divide-y divide-white/5" />,
-                                tr: ({ node, ...props }) => <tr {...props} className="hover:bg-white/5 transition-colors" />,
-                                td: ({ node, ...props }) => <td {...props} className="px-6 py-3 text-[var(--tradeberg-text-primary)]/90" />,
-                            }}
+                                thead: ({ ...props }) => <thead {...props} className="bg-white/5 text-[var(--tradeberg-text-secondary)] uppercase text-xs font-medium tracking-wider" />,
+                                th: ({ ...props }) => <th {...props} className="px-6 py-4 font-semibold text-[var(--tradeberg-text-primary)] border-b border-white/10" />,
+                                tbody: ({ ...props }) => <tbody {...props} className="divide-y divide-white/5" />,
+                                tr: ({ ...props }) => <tr {...props} className="hover:bg-white/5 transition-colors" />,
+                                td: ({ ...props }) => <td {...props} className="px-6 py-3 text-[var(--tradeberg-text-primary)]/90" />,
+                            } as any}
                         >
                             {message.content}
                         </ReactMarkdown>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useUser } from "@/contexts/UserContext";
 import {
     Home,
     Sparkle,
@@ -124,6 +125,7 @@ export function ChatInterface({
     onCloseChat?: () => void;
     mode?: "chat" | "trade";
 }) {
+    const { profile, refreshProfile } = useUser();
     const [chatId, setChatId] = useState<string | null>(initialChatId ?? null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -132,6 +134,7 @@ export function ChatInterface({
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const messageScrollRef = useRef<HTMLDivElement | null>(null);
     const [abortController, setAbortController] = useState<AbortController | null>(null);
+    const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
 
     // Load history when opening an existing chat
     useEffect(() => {
@@ -165,6 +168,12 @@ export function ChatInterface({
 
     const handleSubmit = async (prompt: string) => {
         if (isLoading || (!prompt.trim() && attachments.length === 0)) return;
+
+        // Check credits before sending message
+        if (profile.creditsBalance < 1) {
+            setShowInsufficientCredits(true);
+            return;
+        }
 
         const currentAttachments = attachments;
         const userMsgId = uuidv4();
@@ -298,7 +307,7 @@ export function ChatInterface({
                 ));
             } else {
                 console.error("Stream error", err);
-                
+
                 // Attempt to get a more useful error message
                 let errorMsg = "Unable to retrieve financial data at this time.";
                 if (err.message) {
@@ -314,26 +323,26 @@ export function ChatInterface({
                         errorMsg = "Analysis endpoint not found. The service might be updating.";
                     }
                 }
-                
+
                 setMessages(prev => prev.map(msg =>
                     msg.id === aiMsgId
-                        ? { 
-                            ...msg, 
-                            isThinking: false, 
+                        ? {
+                            ...msg,
+                            isThinking: false,
                             content: `Error: ${errorMsg}\n\nTry again in a few moments or ask a different question.`,
                             error: true
-                          }
+                        }
                         : msg
                 ));
-                
+
                 // Add retry button after 5 seconds
                 setTimeout(() => {
                     setMessages(prev => prev.map(msg =>
                         msg.id === aiMsgId
-                            ? { 
+                            ? {
                                 ...msg,
                                 retryAvailable: true
-                              }
+                            }
                             : msg
                     ));
                 }, 5000);
@@ -407,6 +416,42 @@ export function ChatInterface({
                     />
                 )}
             </AnimatePresence>
+
+            {/* Insufficient Credits Banner */}
+            <AnimatePresence>
+                {showInsufficientCredits && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-md w-full mx-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg backdrop-blur-sm z-50"
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="text-yellow-500 text-2xl">⚠️</div>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-foreground mb-1">Insufficient Credits</h3>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    You need credits to send messages. Upgrade to Pro for unlimited access!
+                                </p>
+                                <div className="flex gap-2">
+                                    <Link
+                                        href="/pricing"
+                                        className="px-4 py-2 bg-[var(--tradeberg-accent-color)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+                                    >
+                                        View Plans
+                                    </Link>
+                                    <button
+                                        onClick={() => setShowInsufficientCredits(false)}
+                                        className="px-4 py-2 bg-transparent border border-border rounded-lg text-sm"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -416,6 +461,8 @@ export function ChatInterface({
 // ---------------------------------------------------------------------------
 
 function ChatHeader({ showUpgrade, onCloseChat }: { showUpgrade?: boolean; onCloseChat?: () => void }) {
+    const { profile } = useUser();
+
     return (
         <div className="flex-shrink-0">
             <div className="max-w-3xl mx-auto flex items-center px-4 py-4">
@@ -423,6 +470,17 @@ function ChatHeader({ showUpgrade, onCloseChat }: { showUpgrade?: boolean; onClo
                     <Home size={20} />
                     <span className="text-lg font-semibold">Tradeberg</span>
                 </div>
+
+                {/* Credits Display */}
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">💳</span>
+                    <span className="text-foreground font-medium">
+                        {profile.creditsBalance === 999999
+                            ? "Unlimited"
+                            : `${profile.creditsBalance} credits`}
+                    </span>
+                </div>
+
                 <div className="flex-1 flex justify-center">
                     {showUpgrade && (
                         <Link
