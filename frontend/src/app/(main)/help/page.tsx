@@ -1,3 +1,4 @@
+```javascript
 "use client";
 
 import { motion } from "framer-motion";
@@ -10,6 +11,8 @@ import {
 } from "lucide-react";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 import Link from "next/link";
+
+export const dynamic = 'force-dynamic';
 
 export default function HelpPage() {
   const scrollRef = useMouseWheelScroll<HTMLDivElement>();
