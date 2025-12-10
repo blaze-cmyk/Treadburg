@@ -5,6 +5,8 @@ import { BookOpen, FileText, Folder, Clock } from "lucide-react";
 import Link from "next/link";
 import { useMouseWheelScroll } from "@/hooks/use-mouse-wheel-scroll";
 
+export const dynamic = 'force-dynamic';
+
 const mockLibraryItems = [
   {
     id: "1",
@@ -59,8 +61,8 @@ export default function LibraryPage() {
               item.type === "chat"
                 ? BookOpen
                 : item.type === "document"
-                ? FileText
-                : Folder;
+                  ? FileText
+                  : Folder;
 
             return (
               <motion.div
