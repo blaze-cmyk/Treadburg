@@ -67,30 +67,76 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     try {
-      // TODO: Get user ID from auth session
-      // For now, we'll skip the backend call if not authenticated
-      // In production, this should fetch from /api/users/profile
+      // Import supabase client
+      const { supabase } = await import('@/lib/supabase');
 
-      // Example:
-      // const response = await fetch('/api/users/profile');
-      // if (response.ok) {
-      //   const data = await response.json();
-      //   setProfile(prev => ({ ...prev, ...data }));
-      // }
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        console.log('No active session, using default profile');
+        return;
+      }
+
+      // Fetch profile from backend API
+      const response = await fetch('/api/users/profile');
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.success && data.user) {
+          const backendUser = data.user;
+
+          // Map backend data to frontend profile format
+          const updatedProfile: Partial<UserProfile> = {
+            email: backendUser.email || session.user.email,
+            name: backendUser.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            bio: backendUser.bio || '',
+            location: backendUser.location || '',
+            website: backendUser.website || '',
+            subscriptionTier: (backendUser.subscription_tier as "free" | "pro" | "max") || 'free',
+            creditsBalance: backendUser.credits_balance || backendUser.credits || 0,
+            stripeCustomerId: backendUser.stripe_customer_id,
+            joinDate: backendUser.created_at
+              ? new Date(backendUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+              : 'Recently',
+          };
+
+          setProfile(prev => ({ ...prev, ...updatedProfile }));
+          console.log('Profile refreshed from backend:', updatedProfile);
+        }
+      } else {
+        console.warn('Failed to fetch profile from backend:', response.status);
+      }
     } catch (error) {
       console.error("Failed to refresh profile:", error);
     }
   };
 
-  const updateProfile = (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     setProfile((prev) => ({ ...prev, ...updates }));
 
-    // TODO: Send updates to backend
-    // fetch('/api/users/profile', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(updates),
-    // });
+    // Send updates to backend
+    try {
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: updates.name,
+          bio: updates.bio,
+          location: updates.location,
+          website: updates.website,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to update profile on backend');
+      } else {
+        console.log('Profile updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+    }
   };
 
   const getInitials = () => {
