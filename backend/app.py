@@ -63,7 +63,8 @@ if settings.ENVIRONMENT == "production":
         TrustedHostMiddleware,
         allowed_hosts=[
             "tradeberg.com", "*.tradeberg.com", "localhost",
-            "*.onrender.com", "treadburg.onrender.com", "tradeberg-frontend.onrender.com"
+            "*.onrender.com", "treadburg.onrender.com", 
+            "tradeberg-frontend.onrender.com", "tradeberg-frontend-qwx0.onrender.com"
         ]
     )
 
@@ -97,7 +98,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
             "connect-src 'self' https://pcxscejarxztezfeucgs.supabase.co "
-            "https://tradeberg-frontend.onrender.com https://*.onrender.com;"
+            "https://tradeberg-frontend-qwx0.onrender.com https://tradeberg-frontend.onrender.com https://*.onrender.com;"
         )
         response.headers["Content-Security-Policy"] = csp
         

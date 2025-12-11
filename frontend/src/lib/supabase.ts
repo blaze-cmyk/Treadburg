@@ -21,7 +21,7 @@ const getAppUrl = () => {
   return (
     process.env.NEXTAUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    'https://tradeberg-frontend.onrender.com'
+    'https://tradeberg-frontend-qwx0.onrender.com'
   );
 }
 
