@@ -281,26 +281,38 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         }
         
         # Try to update existing user, or insert if not exists
-        existing_user = supabase.table('profiles').select('*').eq(
-            'auth_user_id', user_id
-        ).execute()
-        
-        if existing_user.data:
-            # Update existing
-            supabase.table('profiles').update(user_data).eq(
+        try:
+            existing_user = supabase.table('profiles').select('*').eq(
                 'auth_user_id', user_id
             ).execute()
-            log.info(f"Updated existing user profile: {user_email}")
-        else:
-            # Insert new - grant 100 free credits on signup
-            user_data['credits_balance'] = 100
-            user_data['total_credits_purchased'] = 0
-            supabase.table('profiles').insert(user_data).execute()
-            log.info(f"Created new user profile with 100 credits: {user_email}")
+            
+            if existing_user.data:
+                # Update existing
+                update_result = supabase.table('profiles').update(user_data).eq(
+                    'auth_user_id', user_id
+                ).execute()
+                log.info(f"Updated existing user profile: {user_email}")
+            else:
+                # Insert new - grant 100 free credits on signup
+                user_data['credits_balance'] = 100
+                user_data['total_credits_purchased'] = 0
+                insert_result = supabase.table('profiles').insert(user_data).execute()
+                log.info(f"Created new user profile with 100 credits: {user_email}")
+        except Exception as db_error:
+            log.error(f"Database error creating/updating profile: {db_error}")
+            # Continue anyway - user is authenticated, profile can be created later
+            log.warning(f"Continuing with authentication despite profile error")
         
         # Extract session tokens safely
         access_token = session.access_token if hasattr(session, 'access_token') else session.get('access_token')
         refresh_token = session.refresh_token if hasattr(session, 'refresh_token') else session.get('refresh_token')
+        
+        if not access_token:
+            log.error("No access token in session response")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get access token from session"
+            )
         
         return AuthResponse(
             success=True,
@@ -342,8 +354,17 @@ async def email_verification_callback(request: EmailCallbackRequest):
         
         log.info(f"Processing email callback, type: {request.type}")
         
-        # Exchange code for session
-        auth_response = supabase.auth.exchange_code_for_session(request.code)
+        # Exchange code for session using correct method signature
+        try:
+            auth_response = supabase.auth.exchange_code_for_session({
+                "auth_code": request.code
+            })
+        except Exception as exchange_error:
+            log.error(f"Email callback exchange error: {exchange_error}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to verify email: {str(exchange_error)}"
+            )
         
         # Handle different response structures
         user = None
