@@ -1,4 +1,3 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -10,34 +9,9 @@ export async function middleware(req: NextRequest) {
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
-
-  // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession()
+  // Check for backend auth cookies (access_token set by backend)
+  const accessToken = req.cookies.get('access_token')?.value
+  const isAuthenticated = !!accessToken
 
   // Public paths that don't require authentication
   const publicPaths = ['/login', '/reset-password', '/api/auth/google/callback']
@@ -58,7 +32,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Check authentication status for protected routes
-  if (!session && !isPublicPath) {
+  if (!isAuthenticated && !isPublicPath) {
     // Redirect unauthenticated users to login page
     const origin = getOrigin(req);
     const redirectUrl = new URL('/login', origin)
@@ -77,7 +51,7 @@ export async function middleware(req: NextRequest) {
 
   // If user is authenticated and trying to access login page, redirect to home
   // But allow callback routes to complete
-  if (session && isPublicPath && !req.nextUrl.pathname.startsWith('/api/auth/google/callback')) {
+  if (isAuthenticated && isPublicPath && !req.nextUrl.pathname.startsWith('/api/auth/google/callback')) {
     const origin = getOrigin(req);
     return NextResponse.redirect(new URL('/', origin))
   }
