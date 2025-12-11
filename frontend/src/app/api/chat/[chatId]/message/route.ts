@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8080/api';
 
@@ -10,11 +11,23 @@ export async function GET(
   try {
     const { chatId } = await params;
 
-    // Proxy request to FastAPI backend
+    // Get access token from cookies
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("access_token")?.value;
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Authentication required. Please log in.' },
+        { status: 401 }
+      );
+    }
+
+    // Proxy request to FastAPI backend with user token
     const response = await fetch(`${BACKEND_API_URL}/chat/${chatId}/messages`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
     });
 
@@ -54,6 +67,17 @@ export async function POST(
     console.log(`[STREAM] Calling backend: ${BACKEND_API_URL}/chat/${chatId}/stream`);
     console.log(`[STREAM] Prompt: ${userPrompt}`);
 
+    // Get access token from cookies
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("access_token")?.value;
+
+    if (!accessToken) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required. Please log in.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
@@ -64,6 +88,7 @@ export async function POST(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ userPrompt, attachments, mode }),
       signal: controller.signal,
