@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Set auth tokens in httpOnly cookies
-        const redirectResponse = NextResponse.redirect(new URL("/dashboard", request.url));
+        const redirectResponse = NextResponse.redirect(new URL("/", request.url));
         
         if (data.access_token) {
             redirectResponse.cookies.set("access_token", data.access_token, {

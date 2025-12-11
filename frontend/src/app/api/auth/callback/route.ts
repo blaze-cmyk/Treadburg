@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}/reset-password?verified=true`)
       }
 
-      // Email verification or other - redirect to dashboard
-      return NextResponse.redirect(`${origin}/dashboard?verified=true`)
+      // Email verification or other - redirect to home page (which creates a new chat)
+      return NextResponse.redirect(`${origin}/?verified=true`)
     } catch (err) {
       console.error('Unexpected error during auth callback:', err)
       return NextResponse.redirect(`${origin}/login?error=unexpected`)

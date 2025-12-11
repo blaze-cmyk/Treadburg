@@ -3,6 +3,14 @@ import type { NextRequest } from 'next/server'
 
 // This middleware protects authenticated routes and redirects unauthenticated users
 export async function middleware(req: NextRequest) {
+  // Redirect old deployment URL to new deployment URL
+  const host = req.headers.get('host') || '';
+  if (host === 'tradeberg-frontend.onrender.com') {
+    const newUrl = new URL(req.url);
+    newUrl.host = 'tradeberg-frontend-qwx0.onrender.com';
+    return NextResponse.redirect(newUrl, 301); // Permanent redirect
+  }
+
   let response = NextResponse.next({
     request: {
       headers: req.headers,
