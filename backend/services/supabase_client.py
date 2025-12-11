@@ -69,9 +69,13 @@ class SupabaseClient:
                 return None
             
             # Use Supabase SDK to decode token and get auth_user_id
+            import asyncio
             from services.supabase_service import get_supabase_client as get_sdk_client
+            
             supabase_sdk = get_sdk_client()
-            user_response = supabase_sdk.auth.get_user(token)
+            
+            # Run sync SDK call in thread pool to avoid blocking
+            user_response = await asyncio.to_thread(supabase_sdk.auth.get_user, token)
             
             if not user_response or not user_response.user:
                 return None
