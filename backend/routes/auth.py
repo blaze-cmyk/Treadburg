@@ -217,12 +217,31 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         supabase = get_supabase_client()
         
         log.info(f"Exchanging Google OAuth code for session")
+        log.info(f"Code length: {len(request.code)}, Code preview: {request.code[:20]}...")
         
-        # Exchange code for session
-        auth_response = supabase.auth.exchange_code_for_session(request.code)
+        # Exchange code for session using Supabase Python SDK
+        # The method signature is: exchange_code_for_session({"auth_code": code})
+        try:
+            auth_response = supabase.auth.exchange_code_for_session({
+                "auth_code": request.code
+            })
+        except Exception as exchange_error:
+            log.error(f"Supabase exchange_code_for_session error: {exchange_error}")
+            log.error(f"Error type: {type(exchange_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to exchange code: {str(exchange_error)}"
+            )
         
         log.info(f"Auth response type: {type(auth_response)}")
-        log.info(f"Auth response: {auth_response}")
+        
+        # Check if response is an error string
+        if isinstance(auth_response, str):
+            log.error(f"Supabase returned error string: {auth_response}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Google authentication failed: {auth_response}"
+            )
         
         # Handle different response structures from Supabase SDK
         user = None
@@ -231,15 +250,19 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         if hasattr(auth_response, 'user'):
             user = auth_response.user
             session = auth_response.session
+            log.info(f"Got user from object attributes: {user.id if hasattr(user, 'id') else 'unknown'}")
         elif isinstance(auth_response, dict):
             user = auth_response.get('user')
             session = auth_response.get('session')
+            log.info(f"Got user from dict: {user.get('id') if user and isinstance(user, dict) else 'unknown'}")
+        else:
+            log.error(f"Unexpected auth response type: {type(auth_response)}, value: {auth_response}")
         
         if not user or not session:
-            log.error(f"Invalid auth response structure: {auth_response}")
+            log.error(f"Missing user or session. User: {user}, Session: {session}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Failed to authenticate with Google"
+                detail="Failed to authenticate with Google - no user or session returned"
             )
         
         # Extract user data safely
