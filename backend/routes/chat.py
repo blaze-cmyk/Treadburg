@@ -23,6 +23,7 @@ from services.supabase_client import get_supabase_client
 from middleware.rate_limit import limiter, get_rate_limit
 from middleware.security import SecurityValidator
 from middleware.logging_config import SecurityLogger
+from middleware.auth_dependency import get_user_token, require_user_token
 
 # Force load environment variables
 load_dotenv()
@@ -151,12 +152,13 @@ class RenameChatRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("")
-async def get_all_chats():
-    """Get all chats"""
-    # Try Supabase REST API first
+async def get_all_chats(user_token: str = Depends(require_user_token)):
+    """Get all chats for the authenticated user"""
+    # Try Supabase REST API first with user token (respects RLS)
     if USE_SUPABASE_REST:
         try:
-            supabase = get_supabase_client()
+            # Use user-scoped client to respect RLS
+            supabase = get_supabase_client(user_token=user_token)
             chats = await supabase.get_all_chats()
             return [
                 {
@@ -189,16 +191,16 @@ async def get_all_chats():
         db.close()
 
 @router.post("/create")
-async def create_chat(request: CreateChatRequest):
-    """Create a new chat"""
+async def create_chat(request: CreateChatRequest, user_token: str = Depends(require_user_token)):
+    """Create a new chat for the authenticated user"""
     logger = logging.getLogger(__name__)
     print(f"[CREATE_CHAT] Starting... USE_SUPABASE_REST={USE_SUPABASE_REST}")
     
-    # Try Supabase REST API first
+    # Try Supabase REST API first with user token (respects RLS)
     if USE_SUPABASE_REST:
         try:
-            print("[CREATE_CHAT] Getting Supabase client...")
-            supabase = get_supabase_client()
+            print("[CREATE_CHAT] Getting user-scoped Supabase client...")
+            supabase = get_supabase_client(user_token=user_token)
             print("[CREATE_CHAT] Creating chat...")
             chat = await supabase.create_chat(title="New Chat")
             print(f"[CREATE_CHAT] Chat created: {chat['id']}")

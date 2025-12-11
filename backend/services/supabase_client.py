@@ -10,20 +10,42 @@ import uuid
 from config import settings
 
 class SupabaseClient:
-    def __init__(self):
-        self.url = settings.SUPABASE_URL
-        self.key = settings.SUPABASE_SERVICE_ROLE_KEY
+    def __init__(self, user_token: Optional[str] = None):
+        """
+        Initialize Supabase client
         
-        if not self.url or not self.key:
+        Args:
+            user_token: User's JWT token. If provided, uses user context (respects RLS).
+                       If None, uses service role (bypasses RLS - use with caution!)
+        """
+        self.url = settings.SUPABASE_URL
+        self.service_key = settings.SUPABASE_SERVICE_ROLE_KEY
+        self.anon_key = settings.SUPABASE_ANON_KEY
+        
+        if not self.url or not self.service_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
         
         self.base_url = f"{self.url}/rest/v1"
-        self.headers = {
-            "apikey": self.key,
-            "Authorization": f"Bearer {self.key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation"
-        }
+        
+        # Use user token if provided (respects RLS), otherwise service role (bypasses RLS)
+        if user_token:
+            # User-scoped client - respects RLS policies
+            self.headers = {
+                "apikey": self.anon_key or self.service_key,
+                "Authorization": f"Bearer {user_token}",
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            }
+            self.is_user_scoped = True
+        else:
+            # Service role client - bypasses RLS (use only for admin operations)
+            self.headers = {
+                "apikey": self.service_key,
+                "Authorization": f"Bearer {self.service_key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            }
+            self.is_user_scoped = False
     
     async def _request(self, method: str, endpoint: str, **kwargs) -> Any:
         """Make HTTP request to Supabase REST API"""
@@ -128,12 +150,26 @@ class SupabaseClient:
         result = await self._request("PATCH", f"subscriptions?id=eq.{subscription_id}", json=update_data)
         return result[0] if isinstance(result, list) else result
 
-# Global instance
-_supabase_client = None
+# Global service role instance (for admin operations only)
+_service_role_client = None
 
-def get_supabase_client() -> SupabaseClient:
-    """Get or create Supabase client instance"""
-    global _supabase_client
-    if _supabase_client is None:
-        _supabase_client = SupabaseClient()
-    return _supabase_client
+def get_supabase_client(user_token: Optional[str] = None) -> SupabaseClient:
+    """
+    Get Supabase client instance
+    
+    Args:
+        user_token: User's JWT token. If provided, creates user-scoped client (respects RLS).
+                   If None, returns service role client (bypasses RLS).
+    
+    Returns:
+        SupabaseClient instance
+    """
+    if user_token:
+        # Always create new instance for user-scoped clients
+        return SupabaseClient(user_token=user_token)
+    else:
+        # Reuse service role client
+        global _service_role_client
+        if _service_role_client is None:
+            _service_role_client = SupabaseClient()
+        return _service_role_client
