@@ -172,21 +172,26 @@ async def login(request: LoginRequest):
 # ============================================
 
 @router.post("/google/init", response_model=GoogleAuthInitResponse)
-async def google_auth_init(redirect_url: str = "http://localhost:3000/auth/callback"):
+async def google_auth_init(redirect_url: str = "http://localhost:3000/api/auth/google/callback"):
     """
-    Initialize Google OAuth flow
+    Initialize Google OAuth flow with PKCE
     Returns authorization URL to redirect user to
     """
     try:
         supabase = get_supabase_client()
         
-        # Generate OAuth URL
+        log.info(f"Initializing Google OAuth with redirect_url: {redirect_url}")
+        
+        # Generate OAuth URL with PKCE flow (not implicit)
         auth_response = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
-                "redirect_to": redirect_url
+                "redirect_to": redirect_url,
+                "skip_browser_redirect": True  # Return URL instead of redirecting
             }
         })
+        
+        log.info(f"Generated OAuth URL: {auth_response.url}")
         
         return GoogleAuthInitResponse(
             auth_url=auth_response.url
