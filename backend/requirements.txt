@@ -23,6 +23,8 @@ python-jose[cryptography]==3.4.0  # JWT tokens
 
 requests==2.32.5
 aiohttp==3.12.15
+aiodns==3.2.0
+pycares==4.4.0
 async-timeout
 aiocache
 aiofiles
