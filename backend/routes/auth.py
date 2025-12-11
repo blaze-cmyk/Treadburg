@@ -204,8 +204,11 @@ async def google_auth_init(redirect_url: str = "http://localhost:3000/api/auth/g
             detail=f"Failed to initialize Google auth: {str(e)}"
         )
 
+class GoogleCallbackRequest(BaseModel):
+    code: str
+
 @router.post("/google/callback", response_model=AuthResponse)
-async def google_auth_callback(code: str):
+async def google_auth_callback(request: GoogleCallbackRequest):
     """
     Handle Google OAuth callback
     Exchange code for session tokens
@@ -213,8 +216,10 @@ async def google_auth_callback(code: str):
     try:
         supabase = get_supabase_client()
         
+        log.info(f"Exchanging Google OAuth code for session")
+        
         # Exchange code for session
-        auth_response = supabase.auth.exchange_code_for_session(code)
+        auth_response = supabase.auth.exchange_code_for_session(request.code)
         
         if not auth_response.user or not auth_response.session:
             raise HTTPException(
