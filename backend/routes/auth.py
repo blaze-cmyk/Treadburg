@@ -172,13 +172,20 @@ async def login(request: LoginRequest):
 # ============================================
 
 @router.post("/google/init", response_model=GoogleAuthInitResponse)
-async def google_auth_init(redirect_url: str = "http://localhost:3000/api/auth/google/callback"):
+async def google_auth_init(redirect_url: Optional[str] = None):
     """
     Initialize Google OAuth flow with PKCE
     Returns authorization URL to redirect user to
     """
     try:
         supabase = get_supabase_client()
+        
+        # Use provided redirect_url or construct from CORS origins
+        if not redirect_url:
+            import os
+            cors_origins = os.getenv('CORS_ORIGINS', 'https://tradeberg-frontend-qwx0.onrender.com')
+            frontend_url = cors_origins.split(',')[0].strip()
+            redirect_url = f"{frontend_url}/api/auth/google/callback"
         
         log.info(f"Initializing Google OAuth with redirect_url: {redirect_url}")
         
