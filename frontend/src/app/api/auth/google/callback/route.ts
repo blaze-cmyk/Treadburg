@@ -9,15 +9,18 @@ export async function GET(request: NextRequest) {
         const code = searchParams.get("code");
         const error = searchParams.get("error");
 
+        // Get the correct origin for redirects
+        const origin = request.headers.get('origin') || request.nextUrl.origin;
+
         // Handle OAuth errors
         if (error) {
             console.error("Google OAuth error:", error);
-            return NextResponse.redirect(new URL(`/login?error=${error}`, request.url));
+            return NextResponse.redirect(new URL(`/login?error=${error}`, origin));
         }
 
         if (!code) {
             console.error("No authorization code received");
-            return NextResponse.redirect(new URL("/login?error=no_code", request.url));
+            return NextResponse.redirect(new URL("/login?error=no_code", origin));
         }
 
         // Exchange code for tokens via backend
@@ -33,11 +36,11 @@ export async function GET(request: NextRequest) {
 
         if (!response.ok || !data.success) {
             console.error("Backend Google callback failed:", data);
-            return NextResponse.redirect(new URL(`/login?error=auth_failed`, request.url));
+            return NextResponse.redirect(new URL(`/login?error=auth_failed`, origin));
         }
 
-        // Set auth tokens in httpOnly cookies
-        const redirectResponse = NextResponse.redirect(new URL("/", request.url));
+        // Set auth tokens in httpOnly cookies and redirect to /trade page
+        const redirectResponse = NextResponse.redirect(new URL("/trade", origin));
         
         if (data.access_token) {
             redirectResponse.cookies.set("access_token", data.access_token, {
@@ -62,7 +65,8 @@ export async function GET(request: NextRequest) {
         return redirectResponse;
     } catch (error) {
         console.error("Google callback error:", error);
-        return NextResponse.redirect(new URL("/login?error=unexpected", request.url));
+        const origin = request.headers.get('origin') || request.nextUrl.origin;
+        return NextResponse.redirect(new URL("/login?error=unexpected", origin));
     }
 }
 
