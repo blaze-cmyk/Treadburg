@@ -221,45 +221,72 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         # Exchange code for session
         auth_response = supabase.auth.exchange_code_for_session(request.code)
         
-        if not auth_response.user or not auth_response.session:
+        log.info(f"Auth response type: {type(auth_response)}")
+        log.info(f"Auth response: {auth_response}")
+        
+        # Handle different response structures from Supabase SDK
+        user = None
+        session = None
+        
+        if hasattr(auth_response, 'user'):
+            user = auth_response.user
+            session = auth_response.session
+        elif isinstance(auth_response, dict):
+            user = auth_response.get('user')
+            session = auth_response.get('session')
+        
+        if not user or not session:
+            log.error(f"Invalid auth response structure: {auth_response}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Failed to authenticate with Google"
             )
         
+        # Extract user data safely
+        user_id = user.id if hasattr(user, 'id') else user.get('id')
+        user_email = user.email if hasattr(user, 'email') else user.get('email')
+        user_metadata = user.user_metadata if hasattr(user, 'user_metadata') else user.get('user_metadata', {})
+        full_name = user_metadata.get('full_name') if isinstance(user_metadata, dict) else None
+        
         # Create/update user profile
         user_data = {
-            'auth_user_id': auth_response.user.id,
-            'email': auth_response.user.email,
-            'full_name': auth_response.user.user_metadata.get('full_name'),
-            'email_confirmed': True,
+            'auth_user_id': user_id,
+            'email': user_email,
+            'full_name': full_name,
+            'is_verified': True,
             'subscription_tier': 'free'
         }
         
         # Try to update existing user, or insert if not exists
         existing_user = supabase.table('profiles').select('*').eq(
-            'auth_user_id', auth_response.user.id
+            'auth_user_id', user_id
         ).execute()
         
         if existing_user.data:
             # Update existing
             supabase.table('profiles').update(user_data).eq(
-                'auth_user_id', auth_response.user.id
+                'auth_user_id', user_id
             ).execute()
+            log.info(f"Updated existing user profile: {user_email}")
         else:
             # Insert new - grant 100 free credits on signup
             user_data['credits_balance'] = 100
             user_data['total_credits_purchased'] = 0
             supabase.table('profiles').insert(user_data).execute()
+            log.info(f"Created new user profile with 100 credits: {user_email}")
+        
+        # Extract session tokens safely
+        access_token = session.access_token if hasattr(session, 'access_token') else session.get('access_token')
+        refresh_token = session.refresh_token if hasattr(session, 'refresh_token') else session.get('refresh_token')
         
         return AuthResponse(
             success=True,
-            access_token=auth_response.session.access_token,
-            refresh_token=auth_response.session.refresh_token,
+            access_token=access_token,
+            refresh_token=refresh_token,
             user={
-                "id": auth_response.user.id,
-                "email": auth_response.user.email,
-                "full_name": auth_response.user.user_metadata.get('full_name'),
+                "id": user_id,
+                "email": user_email,
+                "full_name": full_name,
             },
             message="Google authentication successful!"
         )
