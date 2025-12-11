@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL(`/login?error=auth_failed`, origin));
         }
 
-        // Set auth tokens in httpOnly cookies and redirect to /trade page
-        const redirectResponse = NextResponse.redirect(new URL("/trade", origin));
+        // Set auth tokens in httpOnly cookies and redirect to home page
+        const redirectResponse = NextResponse.redirect(new URL("/", origin));
         
         if (data.access_token) {
             redirectResponse.cookies.set("access_token", data.access_token, {
