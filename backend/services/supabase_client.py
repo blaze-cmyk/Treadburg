@@ -57,12 +57,50 @@ class SupabaseClient:
             response.raise_for_status()
             return response.json()
     
+    async def get_user_profile_id(self) -> Optional[str]:
+        """Get the profile ID for the authenticated user (only works with user-scoped client)"""
+        if not self.is_user_scoped:
+            return None
+        
+        try:
+            # Get the user's JWT token from headers
+            token = self.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                return None
+            
+            # Use Supabase SDK to decode token and get auth_user_id
+            from services.supabase_service import get_supabase_client as get_sdk_client
+            supabase_sdk = get_sdk_client()
+            user_response = supabase_sdk.auth.get_user(token)
+            
+            if not user_response or not user_response.user:
+                return None
+            
+            auth_user_id = user_response.user.id
+            
+            # Get profile ID from profiles table
+            profile = await self._request("GET", f"profiles?auth_user_id=eq.{auth_user_id}&select=id")
+            if profile and len(profile) > 0:
+                return profile[0].get("id")
+            
+            return None
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Error getting user profile ID: {e}")
+            return None
+    
     # Chat operations
     async def create_chat(self, title: str = "New Chat") -> Dict[str, Any]:
         """Create a new chat"""
         chat_data = {
             "title": title
         }
+        
+        # Add user_id if this is a user-scoped client
+        if self.is_user_scoped:
+            user_id = await self.get_user_profile_id()
+            if user_id:
+                chat_data["user_id"] = user_id
+        
         result = await self._request("POST", "chats", json=chat_data)
         return result[0] if isinstance(result, list) else result
     
@@ -98,6 +136,13 @@ class SupabaseClient:
             "content": content,
             "created_at": datetime.utcnow().isoformat()
         }
+        
+        # Add user_id if this is a user-scoped client
+        if self.is_user_scoped:
+            user_id = await self.get_user_profile_id()
+            if user_id:
+                message_data["user_id"] = user_id
+        
         result = await self._request("POST", "messages", json=message_data)
         return result[0] if isinstance(result, list) else result
     
