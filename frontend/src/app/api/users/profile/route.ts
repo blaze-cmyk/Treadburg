@@ -1,34 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
 
 export async function GET(request: NextRequest) {
     try {
-        // Get Supabase session to get auth token
+        // Get access token from backend cookies (NOT Supabase directly)
         const cookieStore = await cookies();
+        const accessToken = cookieStore.get("access_token")?.value;
 
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        );
-                    },
-                },
-            }
-        );
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
+        if (!accessToken) {
             return NextResponse.json(
                 { success: false, error: "Not authenticated" },
                 { status: 401 }
@@ -38,7 +19,7 @@ export async function GET(request: NextRequest) {
         // Call backend with auth token
         const response = await fetch(`${BACKEND_URL}/users/profile`, {
             headers: {
-                Authorization: `Bearer ${session.access_token}`,
+                Authorization: `Bearer ${accessToken}`,
             },
         });
 
@@ -55,29 +36,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     try {
-        // Get Supabase session to get auth token
+        // Get access token from backend cookies (NOT Supabase directly)
         const cookieStore = await cookies();
+        const accessToken = cookieStore.get("access_token")?.value;
 
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
-                    },
-                    setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
-                        );
-                    },
-                },
-            }
-        );
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
+        if (!accessToken) {
             return NextResponse.json(
                 { success: false, error: "Not authenticated" },
                 { status: 401 }
@@ -91,7 +54,7 @@ export async function PUT(request: NextRequest) {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
+                Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify(body),
         });

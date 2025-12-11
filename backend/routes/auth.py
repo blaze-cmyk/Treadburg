@@ -301,6 +301,81 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         )
 
 # ============================================
+# EMAIL VERIFICATION CALLBACK
+# ============================================
+
+class EmailCallbackRequest(BaseModel):
+    code: str
+    type: Optional[str] = None
+
+@router.post("/email/callback", response_model=AuthResponse)
+async def email_verification_callback(request: EmailCallbackRequest):
+    """
+    Handle email verification and password reset callbacks
+    Exchange code for session tokens
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        log.info(f"Processing email callback, type: {request.type}")
+        
+        # Exchange code for session
+        auth_response = supabase.auth.exchange_code_for_session(request.code)
+        
+        # Handle different response structures
+        user = None
+        session = None
+        
+        if hasattr(auth_response, 'user'):
+            user = auth_response.user
+            session = auth_response.session
+        elif isinstance(auth_response, dict):
+            user = auth_response.get('user')
+            session = auth_response.get('session')
+        
+        if not user or not session:
+            log.error(f"Invalid email callback response: {auth_response}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Failed to verify email"
+            )
+        
+        # Extract user data safely
+        user_id = user.id if hasattr(user, 'id') else user.get('id')
+        user_email = user.email if hasattr(user, 'email') else user.get('email')
+        
+        # Update user profile to mark as verified
+        supabase.table('profiles').update({
+            'is_verified': True
+        }).eq('auth_user_id', user_id).execute()
+        
+        log.info(f"Email verified for user: {user_email}")
+        
+        # Extract session tokens
+        access_token = session.access_token if hasattr(session, 'access_token') else session.get('access_token')
+        refresh_token = session.refresh_token if hasattr(session, 'refresh_token') else session.get('refresh_token')
+        
+        return AuthResponse(
+            success=True,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            user={
+                "id": user_id,
+                "email": user_email,
+            },
+            message="Email verified successfully!"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Email callback error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Email verification failed: {str(e)}"
+        )
+
+# ============================================
 # SESSION MANAGEMENT
 # ============================================
 

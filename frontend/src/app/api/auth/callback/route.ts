@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
 
 /**
  * This route handles email confirmation callbacks from Supabase Auth
@@ -17,22 +18,50 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     try {
-      // Exchange the code for a session
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      // Exchange the code for a session via backend (NOT direct Supabase access)
+      const response = await fetch(`${BACKEND_URL}/auth/email/callback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code, type }),
+      });
 
-      if (error) {
-        console.error('Error exchanging code for session:', error)
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        console.error('Error exchanging code for session:', data)
         return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
       }
 
-      // Successfully authenticated - redirect based on type
-      if (type === 'recovery') {
-        // Password reset - redirect to reset password page
-        return NextResponse.redirect(`${origin}/reset-password?verified=true`)
+      // Set auth tokens in httpOnly cookies
+      const redirectUrl = type === 'recovery' 
+        ? `${origin}/reset-password?verified=true`
+        : `${origin}/?verified=true`;
+      
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+
+      if (data.access_token) {
+        redirectResponse.cookies.set("access_token", data.access_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          path: "/",
+        });
+
+        if (data.refresh_token) {
+          redirectResponse.cookies.set("refresh_token", data.refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24 * 30, // 30 days
+            path: "/",
+          });
+        }
       }
 
-      // Email verification or other - redirect to home page (which creates a new chat)
-      return NextResponse.redirect(`${origin}/?verified=true`)
+      return redirectResponse;
     } catch (err) {
       console.error('Unexpected error during auth callback:', err)
       return NextResponse.redirect(`${origin}/login?error=unexpected`)
