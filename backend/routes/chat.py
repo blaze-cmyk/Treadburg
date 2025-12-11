@@ -18,6 +18,7 @@ from google.genai import types
 from database import get_db, SessionLocal
 from models.chat import Chat, Message
 from services.supabase_client import get_supabase_client
+from services.credit_service import check_user_credits, deduct_credits
 
 # Security imports
 from middleware.rate_limit import limiter, get_rate_limit
@@ -253,10 +254,10 @@ async def create_chat(request: CreateChatRequest, user_token: str = Depends(requ
         db.close()
 
 @router.get("/{chat_id}")
-async def get_chat(chat_id: str):
-    """Get chat by ID"""
+async def get_chat(chat_id: str, user_token: str = Depends(require_user_token)):
+    """Get chat by ID for authenticated user"""
     if USE_SUPABASE_REST:
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(user_token=user_token)
         chat = await supabase.get_chat(chat_id)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
@@ -282,10 +283,10 @@ async def get_chat(chat_id: str):
             db.close()
 
 @router.delete("/{chat_id}")
-async def delete_chat(chat_id: str):
-    """Delete a chat"""
+async def delete_chat(chat_id: str, user_token: str = Depends(require_user_token)):
+    """Delete a chat for authenticated user"""
     if USE_SUPABASE_REST:
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(user_token=user_token)
         await supabase.delete_chat(chat_id)
         return {"success": True}
     else:
@@ -301,10 +302,10 @@ async def delete_chat(chat_id: str):
             db.close()
 
 @router.get("/{chat_id}/messages")
-async def get_messages(chat_id: str):
-    """Get all messages for a chat"""
+async def get_messages(chat_id: str, user_token: str = Depends(require_user_token)):
+    """Get all messages for a chat (authenticated user only)"""
     if USE_SUPABASE_REST:
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(user_token=user_token)
         messages = await supabase.get_messages(chat_id)
         return [
             {
@@ -335,12 +336,12 @@ async def get_messages(chat_id: str):
             db.close()
 
 @router.put("/{chat_id}/title")
-async def rename_chat(chat_id: str, request: RenameChatRequest):
-    """Rename a chat title."""
+async def rename_chat(chat_id: str, request: RenameChatRequest, user_token: str = Depends(require_user_token)):
+    """Rename a chat title for authenticated user."""
     new_title = (request.title or "").strip() or "New Chat"
     
     if USE_SUPABASE_REST:
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(user_token=user_token)
         chat = await supabase.update_chat(chat_id, new_title)
         return {
             "id": chat.get("id"),
@@ -374,24 +375,40 @@ async def rename_chat(chat_id: str, request: RenameChatRequest):
 @router.post("/{chat_id}/stream")
 async def stream_chat_response(
     chat_id: str,
-    request: SendMessageRequest
+    request: SendMessageRequest,
+    user_token: str = Depends(require_user_token)
 ):
     """
     Stream AI response using Google Gemini with Search Grounding.
-    Replaces previous Agent V2 architecture.
+    Respects RLS and deducts credits from authenticated user.
     """
     try:
         logger = logging.getLogger(__name__)
         
-        # Use Supabase REST API if enabled
+        # Check user has sufficient credits before processing
+        try:
+            credits_balance = await check_user_credits(user_token)
+            if credits_balance < 1:
+                raise HTTPException(
+                    status_code=402,  # Payment Required
+                    detail=f"Insufficient credits. You have {credits_balance} credits. Each message costs 1 credit. Please purchase more credits to continue."
+                )
+            logger.info(f"User has {credits_balance} credits available")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error checking credits: {e}")
+            # Continue anyway - don't block users if credit check fails
+        
+        # Use Supabase REST API if enabled with user token (respects RLS)
         if USE_SUPABASE_REST:
-            supabase = get_supabase_client()
+            supabase = get_supabase_client(user_token=user_token)
             
-            # Check if chat exists
+            # Check if chat exists and belongs to user (RLS will enforce this)
             try:
                 chat = await supabase.get_chat(chat_id)
                 if not chat:
-                    raise HTTPException(status_code=404, detail=f"Chat not found: {chat_id}")
+                    raise HTTPException(status_code=404, detail=f"Chat not found or access denied: {chat_id}")
             except:
                 # Chat might not exist, that's ok for now
                 pass
@@ -403,7 +420,7 @@ async def stream_chat_response(
                 content=request.userPrompt
             )
             
-            # 3. Load History
+            # 3. Load History (only user's messages due to RLS)
             messages = await supabase.get_messages(chat_id)
             db_messages = messages  # Use REST API messages
         else:
@@ -569,7 +586,7 @@ async def stream_chat_response(
 
                 # 6. Save Assistant Message
                 if USE_SUPABASE_REST:
-                    supabase = get_supabase_client()
+                    supabase = get_supabase_client(user_token=user_token)
                     # Save assistant message
                     await supabase.create_message(
                         chat_id=chat_id,
@@ -581,6 +598,17 @@ async def stream_chat_response(
                     if chat and chat.get("title") == "New Chat" and len(full_response_text) > 0:
                         title = full_response_text[:50].strip()
                         await supabase.update_chat(chat_id, title)
+                    
+                    # Deduct 1 credit for this AI response
+                    try:
+                        deduction_result = await deduct_credits(user_token, amount=1)
+                        if deduction_result["success"]:
+                            logger.info(f"Deducted 1 credit. New balance: {deduction_result['new_balance']}")
+                        else:
+                            logger.warning(f"Failed to deduct credits: {deduction_result.get('error')}")
+                    except Exception as credit_error:
+                        logger.error(f"Error deducting credits: {credit_error}")
+                        # Don't fail the request if credit deduction fails
                 else:
                     with SessionLocal() as db_session:
                         chat_obj = db_session.query(Chat).filter(Chat.id == chat_id).first()
@@ -640,13 +668,13 @@ async def stream_chat_response(
 # ---------------------------------------------------------------------------
 
 @router.get("/{chat_id}/message")
-async def get_messages_alternative(chat_id: str):
-    return await get_messages(chat_id)
+async def get_messages_alternative(chat_id: str, user_token: str = Depends(require_user_token)):
+    return await get_messages(chat_id, user_token)
 
 @router.post("/{chat_id}/message")
-async def post_message_alternative(chat_id: str, request: SendMessageRequest):
-    return await stream_chat_response(chat_id, request)
+async def stream_chat_response_alternative(chat_id: str, request: SendMessageRequest, user_token: str = Depends(require_user_token)):
+    return await stream_chat_response(chat_id, request, user_token)
 
 @router.get("/all")
-async def get_all_chats_alternative():
-    return await get_all_chats()
+async def get_all_chats_alternative(user_token: str = Depends(require_user_token)):
+    return await get_all_chats(user_token)
