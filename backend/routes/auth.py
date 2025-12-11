@@ -76,13 +76,14 @@ async def signup(request: SignupRequest):
             'auth_user_id': auth_response.user.id,
             'email': request.email,
             'full_name': request.full_name or request.email.split('@')[0],
-            'email_confirmed': False,
-            'credits': 100,  # ← 100 FREE CREDITS for new users!
+            'is_verified': False,
+            'credits_balance': 100,  # ← 100 FREE CREDITS for new users!
+            'total_credits_purchased': 0,
             'subscription_tier': 'free'
         }
         
         try:
-            supabase.table('users').insert(user_data).execute()
+            supabase.table('profiles').insert(user_data).execute()
             log.info(f"New user created with 100 free credits: {request.email}")
         except Exception as db_error:
             log.warning(f"User profile creation failed (may already exist): {db_error}")
@@ -137,7 +138,7 @@ async def login(request: LoginRequest):
             )
         
         # Get user profile from database
-        user_profile = supabase.table('users').select('*').eq(
+        user_profile = supabase.table('profiles').select('*').eq(
             'auth_user_id', auth_response.user.id
         ).execute()
         
@@ -226,19 +227,20 @@ async def google_auth_callback(code: str):
         }
         
         # Try to update existing user, or insert if not exists
-        existing_user = supabase.table('users').select('*').eq(
+        existing_user = supabase.table('profiles').select('*').eq(
             'auth_user_id', auth_response.user.id
         ).execute()
         
         if existing_user.data:
             # Update existing
-            supabase.table('users').update(user_data).eq(
+            supabase.table('profiles').update(user_data).eq(
                 'auth_user_id', auth_response.user.id
             ).execute()
         else:
-            # Insert new
-            user_data['credits'] = 0
-            supabase.table('users').insert(user_data).execute()
+            # Insert new - grant 100 free credits on signup
+            user_data['credits_balance'] = 100
+            user_data['total_credits_purchased'] = 0
+            supabase.table('profiles').insert(user_data).execute()
         
         return AuthResponse(
             success=True,
@@ -290,7 +292,7 @@ async def get_session(authorization: Optional[str] = Header(None)):
             )
         
         # Get user profile
-        user_profile = supabase.table('users').select('*').eq(
+        user_profile = supabase.table('profiles').select('*').eq(
             'auth_user_id', user_response.user.id
         ).execute()
         
@@ -303,7 +305,7 @@ async def get_session(authorization: Optional[str] = Header(None)):
                 "email": user_response.user.email,
                 "full_name": profile_data.get('full_name') or user_response.user.user_metadata.get('full_name'),
                 "subscription_tier": profile_data.get('subscription_tier', 'free'),
-                "credits": profile_data.get('credits', 0)
+                "credits": profile_data.get('credits_balance', 0)
             }
         )
         

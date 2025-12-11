@@ -66,17 +66,18 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             )
         
         # Get user profile from database
-        user_data = supabase.table('users').select('*').eq('auth_user_id', user_response.user.id).single().execute()
+        user_data = supabase.table('profiles').select('*').eq('auth_user_id', user_response.user.id).single().execute()
         
         if not user_data.data:
             # Create user profile if doesn't exist
             new_user = {
                 'auth_user_id': user_response.user.id,
                 'email': user_response.user.email,
-                'email_confirmed': user_response.user.email_confirmed_at is not None,
-                'credits': 0
+                'is_verified': user_response.user.email_confirmed_at is not None,
+                'credits_balance': 100,
+                'total_credits_purchased': 0
             }
-            user_data = supabase.table('users').insert(new_user).execute()
+            user_data = supabase.table('profiles').insert(new_user).execute()
         
         return user_data.data
         
@@ -113,7 +114,7 @@ async def update_user_profile(
         supabase = get_supabase_client()
         
         update_data = profile_update.dict(exclude_unset=True)
-        result = supabase.table('users').update(update_data).eq('id', user['id']).execute()
+        result = supabase.table('profiles').update(update_data).eq('id', user['id']).execute()
         
         return {
             "success": True,
@@ -132,7 +133,7 @@ async def get_user_credits(user: dict = Depends(get_current_user)):
     """Get user's current credits"""
     return {
         "success": True,
-        "credits": user.get('credits', 0),
+        "credits": user.get('credits_balance', 0),
         "total_purchased": user.get('total_credits_purchased', 0),
         "total_used": user.get('total_credits_used', 0)
     }
@@ -149,7 +150,7 @@ async def purchase_credits(
         stripe_client = get_stripe_client()
         
         # Get or create user in Supabase
-        user_response = supabase.table('users').select('*').eq('auth_user_id', user['auth_user_id']).execute()
+        user_response = supabase.table('profiles').select('*').eq('auth_user_id', user['auth_user_id']).execute()
         
         if not user_response.data:
             # Auto-create user in Supabase if doesn't exist
@@ -157,10 +158,11 @@ async def purchase_credits(
             new_user_data = {
                 'auth_user_id': user['auth_user_id'],
                 'email': user.get('email'),
-                'email_confirmed': user.get('email_confirmed', False),
-                'credits': 0
+                'is_verified': user.get('email_confirmed', False),
+                'credits_balance': 100,
+                'total_credits_purchased': 0
             }
-            user_response = supabase.table('users').insert(new_user_data).execute()
+            user_response = supabase.table('profiles').insert(new_user_data).execute()
         
         supabase_user_id = user_response.data[0]['id']
         
@@ -176,7 +178,7 @@ async def purchase_credits(
             
             if customer_result['success']:
                 stripe_customer_id = customer_result['customer'].id
-                supabase.table('users').update({
+                supabase.table('profiles').update({
                     'stripe_customer_id': stripe_customer_id
                 }).eq('id', supabase_user_id).execute()
             else:
@@ -242,7 +244,7 @@ async def use_credits(
         supabase = get_supabase_client()
         
         # Check if user has enough credits
-        current_credits = user.get('credits', 0)
+        current_credits = user.get('credits_balance', 0)
         if current_credits < usage.credits:
             raise HTTPException(
                 status_code=400,
@@ -251,8 +253,8 @@ async def use_credits(
         
         # Deduct credits
         new_credits = current_credits - usage.credits
-        supabase.table('users').update({
-            'credits': new_credits,
+        supabase.table('profiles').update({
+            'credits_balance': new_credits,
             'total_credits_used': user.get('total_credits_used', 0) + usage.credits
         }).eq('id', user['id']).execute()
         
