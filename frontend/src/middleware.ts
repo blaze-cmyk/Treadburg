@@ -40,7 +40,7 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
 
   // Public paths that don't require authentication
-  const publicPaths = ['/login', '/reset-password', '/auth/callback']
+  const publicPaths = ['/login', '/reset-password', '/api/auth/google/callback']
   const isPublicPath = publicPaths.some(path =>
     req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(`${path}/`)
   )
@@ -76,7 +76,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // If user is authenticated and trying to access login page, redirect to home
-  if (session && isPublicPath && !req.nextUrl.pathname.startsWith('/auth/callback')) {
+  // But allow callback routes to complete
+  if (session && isPublicPath && !req.nextUrl.pathname.startsWith('/api/auth/google/callback')) {
     const origin = getOrigin(req);
     return NextResponse.redirect(new URL('/', origin))
   }

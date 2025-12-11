@@ -1,63 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 
-// Import constants instead of defining them here
-import { PRODUCTION_URL } from '@/lib/constants'
-
-// CRITICAL FIX: Always use the production URL for OAuth callbacks
-// This prevents redirect issues across different environments
-function getOrigin() {
-  return PRODUCTION_URL;
-}
-
-// this route handles the callback from Supabase Auth
+/**
+ * DEPRECATED: This route is no longer used for Google OAuth
+ * 
+ * The new OAuth flow uses /api/auth/google/callback which properly
+ * routes through the backend API.
+ * 
+ * This route now redirects to the new callback to prevent conflicts.
+ * 
+ * If you're seeing this in production, please update your OAuth
+ * redirect URLs in Supabase to:
+ * https://your-domain.com/api/auth/google/callback
+ */
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const error = requestUrl.searchParams.get('error')
 
-  // Always use production URL for OAuth callback
-  const origin = getOrigin();
-
+  // Redirect to the new callback route
+  const newCallbackUrl = new URL('/api/auth/google/callback', request.url)
+  
   if (code) {
-    const cookieStore = await cookies()
-
-    // Create a server client that can set cookies
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
-          },
-        },
-      }
-    )
-
-    try {
-      // Exchange the code for a session
-      const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-      if (error) {
-        console.error('Error exchanging code for session:', error)
-        return NextResponse.redirect(`${origin}/login?error=auth_callback_error&reason=${encodeURIComponent(error.message)}`)
-      }
-
-      // Successfully authenticated
-      return NextResponse.redirect(`${origin}/?auth=success`)
-    } catch (err: any) {
-      console.error('Unexpected error during auth callback:', err)
-      return NextResponse.redirect(`${origin}/login?error=unexpected&message=${encodeURIComponent(err?.message || 'Unknown error')}`)
-    }
+    newCallbackUrl.searchParams.set('code', code)
+  }
+  
+  if (error) {
+    newCallbackUrl.searchParams.set('error', error)
   }
 
-  // No code provided
-  return NextResponse.redirect(`${origin}/login?error=no_code`)
+  console.log('⚠️ Old OAuth callback route used - redirecting to new route')
+  console.log('Please update OAuth redirect URL to: /api/auth/google/callback')
+  
+  return NextResponse.redirect(newCallbackUrl)
 }

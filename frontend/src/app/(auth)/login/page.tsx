@@ -235,29 +235,6 @@ export default function Login() {
                   </svg>
                   Continue with Email
                 </button>
-
-                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
-                  <Image
-                    src="https://auth-cdn.oaistatic.com/assets/microsoft-logo-BUXxQnXH.svg"
-                    width={20}
-                    height={20}
-                    alt="Microsoft Icon"
-                  />
-                  Continue with Microsoft
-                </button>
-                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
-                  <Image
-                    src="https://auth-cdn.oaistatic.com/assets/apple-logo-vertically-balanced-rwLdlt8P.svg"
-                    width={20}
-                    height={20}
-                    alt="Apple Icon"
-                  />
-                  Continue with Apple
-                </button>
-                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--tradeberg-card-bg)] hover:bg-opacity-80 text-[var(--tradeberg-text-primary)] rounded-lg transition-colors border border-[var(--tradeberg-glass-border)]">
-                  <Phone width={20} height={20} />
-                  Continue with phone
-                </button>
               </div>
             </>
           ) : (

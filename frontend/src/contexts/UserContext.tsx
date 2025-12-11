@@ -72,7 +72,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (!data.success || !data.user) {
-        console.log('No active session from backend');
+        console.log('No active session from backend - resetting to guest');
+        // Reset to guest profile and clear localStorage
+        setProfile(defaultProfile);
+        localStorage.removeItem(STORAGE_KEY);
         return;
       }
 

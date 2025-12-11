@@ -1,0 +1,7 @@
+// THIS FILE IS DEPRECATED AND SHOULD NOT BE USED
+// The new Google OAuth flow uses /api/auth/google/callback instead
+// This file is kept for reference only and will be deleted
+
+// If you see this file being used, there's a configuration error
+// Please update your OAuth redirect URLs to use:
+// https://your-domain.com/api/auth/google/callback
