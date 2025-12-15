@@ -7,7 +7,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/ap
  * This route handles email confirmation callbacks from Supabase Auth
  * (e.g., email verification, password reset confirmations)
  * 
- * Note: This is different from Google OAuth which uses /api/auth/google/callback
+ *
  */
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)

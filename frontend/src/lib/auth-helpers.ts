@@ -29,16 +29,3 @@ export function getAppOrigin(): string {
          process.env.NEXTAUTH_URL || 
          PRODUCTION_URL;
 }
-
-/**
- * Adds Google OAuth specific parameters
- */
-export function getGoogleOAuthOptions() {
-  return {
-    scopes: 'email profile',
-    queryParams: {
-      access_type: 'online',
-      prompt: 'select_account'
-    }
-  };
-}

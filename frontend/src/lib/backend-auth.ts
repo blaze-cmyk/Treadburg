@@ -47,7 +47,7 @@ export const backendAuth = {
     /**
      * Initialize Google OAuth flow
      */
-    async googleInit(redirectUrl: string = `${window.location.origin}/api/auth/google/callback`): Promise<{ auth_url: string }> {
+    async googleInit(redirectUrl: string = 'https://tradeberg-frontend-qwx0.onrender.com/api/auth/google/callback'): Promise<{ auth_url: string }> {
         const response = await fetch('/api/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

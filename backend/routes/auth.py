@@ -180,21 +180,18 @@ async def google_auth_init(redirect_url: Optional[str] = None):
     try:
         supabase = get_supabase_client()
         
-        # Use provided redirect_url or construct from CORS origins
+        # Use production URL as default redirect
         if not redirect_url:
-            import os
-            cors_origins = os.getenv('CORS_ORIGINS', 'https://tradeberg-frontend-qwx0.onrender.com')
-            frontend_url = cors_origins.split(',')[0].strip()
-            redirect_url = f"{frontend_url}/api/auth/google/callback"
+            redirect_url = "https://tradeberg-frontend-qwx0.onrender.com/api/auth/google/callback"
         
         log.info(f"Initializing Google OAuth with redirect_url: {redirect_url}")
         
-        # Generate OAuth URL with PKCE flow (not implicit)
+        # Generate OAuth URL with PKCE flow
         auth_response = supabase.auth.sign_in_with_oauth({
             "provider": "google",
             "options": {
                 "redirect_to": redirect_url,
-                "skip_browser_redirect": True  # Return URL instead of redirecting
+                "skip_browser_redirect": True
             }
         })
         
@@ -224,30 +221,17 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         supabase = get_supabase_client()
         
         log.info(f"Exchanging Google OAuth code for session")
-        log.info(f"Code length: {len(request.code)}, Code preview: {request.code[:20]}...")
         
         # Exchange code for session using Supabase Python SDK
-        # The method signature is: exchange_code_for_session({"auth_code": code})
         try:
             auth_response = supabase.auth.exchange_code_for_session({
                 "auth_code": request.code
             })
         except Exception as exchange_error:
             log.error(f"Supabase exchange_code_for_session error: {exchange_error}")
-            log.error(f"Error type: {type(exchange_error)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Failed to exchange code: {str(exchange_error)}"
-            )
-        
-        log.info(f"Auth response type: {type(auth_response)}")
-        
-        # Check if response is an error string
-        if isinstance(auth_response, str):
-            log.error(f"Supabase returned error string: {auth_response}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Google authentication failed: {auth_response}"
             )
         
         # Handle different response structures from Supabase SDK
@@ -257,19 +241,15 @@ async def google_auth_callback(request: GoogleCallbackRequest):
         if hasattr(auth_response, 'user'):
             user = auth_response.user
             session = auth_response.session
-            log.info(f"Got user from object attributes: {user.id if hasattr(user, 'id') else 'unknown'}")
         elif isinstance(auth_response, dict):
             user = auth_response.get('user')
             session = auth_response.get('session')
-            log.info(f"Got user from dict: {user.get('id') if user and isinstance(user, dict) else 'unknown'}")
-        else:
-            log.error(f"Unexpected auth response type: {type(auth_response)}, value: {auth_response}")
         
         if not user or not session:
-            log.error(f"Missing user or session. User: {user}, Session: {session}")
+            log.error(f"Missing user or session in Google auth response")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Failed to authenticate with Google - no user or session returned"
+                detail="Failed to authenticate with Google"
             )
         
         # Extract user data safely
@@ -295,20 +275,21 @@ async def google_auth_callback(request: GoogleCallbackRequest):
             
             if existing_user.data:
                 # Update existing
-                update_result = supabase.table('profiles').update(user_data).eq(
+                supabase.table('profiles').update(user_data).eq(
                     'auth_user_id', user_id
                 ).execute()
                 log.info(f"Updated existing user profile: {user_email}")
+                credits = existing_user.data[0].get('credits_balance', 0)
             else:
                 # Insert new - grant 100 free credits on signup
                 user_data['credits_balance'] = 100
                 user_data['total_credits_purchased'] = 0
-                insert_result = supabase.table('profiles').insert(user_data).execute()
+                supabase.table('profiles').insert(user_data).execute()
                 log.info(f"Created new user profile with 100 credits: {user_email}")
+                credits = 100
         except Exception as db_error:
             log.error(f"Database error creating/updating profile: {db_error}")
-            # Continue anyway - user is authenticated, profile can be created later
-            log.warning(f"Continuing with authentication despite profile error")
+            credits = 0
         
         # Extract session tokens safely
         access_token = session.access_token if hasattr(session, 'access_token') else session.get('access_token')
@@ -329,6 +310,8 @@ async def google_auth_callback(request: GoogleCallbackRequest):
                 "id": user_id,
                 "email": user_email,
                 "full_name": full_name,
+                "credits": credits,
+                "subscription_tier": "free"
             },
             message="Google authentication successful!"
         )
