@@ -51,7 +51,7 @@ git push -u origin main
    Name: tradeberg-backend
    Region: Oregon (US West) or closest to you
    Branch: main
-   Root Directory: server
+   Root Directory: trade/server
    Runtime: Python 3
    Build Command: pip install -r requirements.txt
    Start Command: uvicorn app:app --host 0.0.0.0 --port $PORT
@@ -105,10 +105,10 @@ git push -u origin main
    Name: tradeberg-frontend
    Region: Oregon (US West) - same as backend
    Branch: main
-   Root Directory: client
+   Root Directory: trade
    Runtime: Node
-   Build Command: npm install && npm run build
-   Start Command: npm start
+   Build Command: npm install; npm run build
+   Start Command: cd client && npm start
    ```
 
 4. **Select Plan**

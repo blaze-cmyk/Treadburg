@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="url(#gradient)"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#6366f1"/>
+      <stop offset="100%" stopColor="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- Simplified Eagle Icon -->
+  <g transform="translate(8, 6)">
+    <!-- Eagle Body -->
+    <ellipse cx="8" cy="10" rx="2" ry="4" fill="white"/>
+    <!-- Eagle Head -->
+    <circle cx="8" cy="6" r="2.5" fill="white"/>
+    <!-- Beak -->
+    <path d="M10.5 6 L13 5 L13 7 L10.5 7 Z" fill="white"/>
+    <!-- Wings -->
+    <path d="M3 9 L0 6 L0 7 L3 10 Z" fill="white" opacity="0.8"/>
+    <path d="M13 9 L16 6 L16 7 L13 10 Z" fill="white" opacity="0.8"/>
+  </g>
+</svg>
+
