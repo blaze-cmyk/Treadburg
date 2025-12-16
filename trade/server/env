@@ -14,6 +14,9 @@ ANTHROPIC_API_KEY=sk-ant-api03-XdCzWuRMAI3EQo4dFGBzw1yFcu5pXgM1RlXIyaXMlNbP_CBVk
 # Perplexity API (for enhanced market context analysis)
 PERPLEXITY_API_KEY=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
 
+# Google Gemini API (for AI chat responses)
+GEMINI_API_KEY=AIzaSyC2PKfhkmXl94eGzOh8u51-Wp4t-Xh47SE
+
 # Market Data APIs (REQUIRED for function calling)
 NANSEN_API_KEY=zoUZzFeRYucilTJprSMXBsvNHzVVTn2I
 
@@ -41,25 +44,28 @@ COINALYZE_API_BASE_URL=https://api.coinalyze.net/v1
 # OLLAMA_BASE_URL=http://localhost:11434
 
 # CORS Configuration
-CORS_ALLOW_ORIGIN=https://tradeberg-frontend.onrender.com
+CORS_ALLOW_ORIGIN=http://localhost:5173
 
 # Disable analytics
 SCARF_NO_ANALYTICS=true
 
 # WebUI Configuration (auth disabled for easy access)
 WEBUI_NAME=TradeBerg
+
 # NextAuth Configuration
 NEXTAUTH_SECRET=jAamxBTZfv5kQH9zFen8YX6Gbr3dh0Ji
-NEXTAUTH_URL=https://tradeberg-frontend.onrender.com
+NEXTAUTH_URL=http://localhost:3000
 
 # Database (Supabase PostgreSQL)
-DATABASE_URL=postgresql://postgres.pcxscejarxztezfeucgs:Treadburg%401@aws-0-us-east-1.pooler.supabase.com:5432/postgres?pgbouncer=true&sslmode=require
+# Direct connection port 5432 (may timeout on some networks)
+DATABASE_URL=postgresql://postgres.pcxscejarxztezfeucgs:Supabase%4012@db.pcxscejarxztezfeucgs.supabase.co:5432/postgres?sslmode=require&connect_timeout=30
+
+# Use Supabase REST API instead of direct PostgreSQL (bypasses firewall issues)
+USE_SUPABASE_REST=true
 
 # Backend API
-NEXT_PUBLIC_API_URL=https://treadburg.onrender.com/api
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8080/api
 
-
-# MCP Server Configuration
 # Configured with live credentials
 
 # ============================================
@@ -74,6 +80,15 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 # ============================================
 STRIPE_SECRET_KEY=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
 STRIPE_PUBLISHABLE_KEY=pk_live_51PHqTQKGS1cHUXXStuI96OXZz47zXQzFOoo1KqjixV7fc2Pz3HuJVwTarOGe6DWuThprbgPHGcWYrtd8BplEyaro00JyOe8IWi
+
+# Stripe Price IDs (Recurring Subscriptions - Auto-generated)
+STRIPE_PRICE_ID_PRO_MONTHLY=price_1SbPgJKGS1cHUXXS19wme2HK
+STRIPE_PRICE_ID_PRO_YEARLY=price_1SbPgJKGS1cHUXXSv13cYua8
+STRIPE_PRICE_ID_MAX_MONTHLY=price_1SbPgKKGS1cHUXXSv8VsWsvG
+STRIPE_PRICE_ID_MAX_YEARLY=price_1SbPgKKGS1cHUXXSjBfAy54J
+
+# Stripe Webhook Secret (for local testing - get from Stripe Dashboard)
+STRIPE_WEBHOOK_SECRET=
 
 # ============================================
 # MCP SERVER SETTINGS

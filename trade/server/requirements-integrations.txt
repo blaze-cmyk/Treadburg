@@ -1,0 +1,14 @@
+# Supabase & Stripe Integration Dependencies
+# Install with: pip install -r requirements-integrations.txt
+
+# Supabase Python Client
+supabase>=2.0.0
+postgrest-py>=0.13.0
+
+# Stripe Python Library
+stripe>=7.0.0
+
+# Additional dependencies for integrations
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+httpx>=0.25.0

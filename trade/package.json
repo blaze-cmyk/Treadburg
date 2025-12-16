@@ -1,0 +1,34 @@
+{
+  "name": "tradeberg-monorepo",
+  "version": "1.0.0",
+  "description": "TradeBerg Trading Platform - Unified Monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && python -m uvicorn app:app --reload --host 0.0.0.0 --port 8080",
+    "build": "npm run build:client",
+    "build:client": "cd client && npm run build",
+    "start": "concurrently \"npm run start:client\" \"npm run start:server\"",
+    "start:client": "cd client && npm start",
+    "start:server": "cd server && python -m uvicorn app:app --host 0.0.0.0 --port 8080",
+    "install:all": "npm run install:client && npm run install:server",
+    "install:client": "cd client && npm install",
+    "install:server": "cd server && pip install -r requirements.txt",
+    "lint": "cd client && npm run lint",
+    "test": "npm run test:client && npm run test:server",
+    "test:client": "cd client && npm test",
+    "test:server": "cd server && pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0",
+    "python": ">=3.11.0"
+  },
+  "workspaces": [
+    "client"
+  ]
+}
