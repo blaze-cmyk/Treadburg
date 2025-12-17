@@ -1,44 +1,18 @@
-import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import { NextAuthOptions } from "next-auth";
-import { supabase } from "@/lib/supabase";
 
 export const authOptions:NextAuthOptions = {
     providers: [
-        CredentialsProvider({
-            name: "Email",
-            credentials: {
-                email: { label: "Email", type: "email", placeholder: "Email" },
-                password: { label: "Password", type: "password" },
-            },
-            async authorize(credentials) {
-                if (!credentials?.email || !credentials.password) {
-                    return null;
+        GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID || "",
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+            authorization: {
+                params: {
+                    prompt: "consent",
+                    access_type: "offline",
+                    response_type: "code"
                 }
-
-                try {
-                    // Sign in with Supabase
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: credentials.email,
-                        password: credentials.password,
-                    });
-
-                    if (error || !data.user) {
-                        console.error("Supabase auth error:", error);
-                        return null;
-                    }
-
-                    // Return the user data in the format NextAuth expects
-                    return {
-                        id: data.user.id,
-                        email: data.user.email,
-                        name: data.user.user_metadata?.name || data.user.email?.split('@')[0],
-                        image: data.user.user_metadata?.avatar_url,
-                    };
-                } catch (e) {
-                    console.error("Error during Supabase authentication:", e);
-                    return null;
-                }
-            },
+            }
         }),
     ],
     session: {
@@ -50,6 +24,7 @@ export const authOptions:NextAuthOptions = {
                 token.id = user.id;
                 token.email = user.email;
                 token.name = user.name;
+                token.picture = user.image;
             }
             return token;
         },
@@ -58,36 +33,45 @@ export const authOptions:NextAuthOptions = {
                 session.user.id = token.id as string;
                 session.user.email = token.email;
                 session.user.name = token.name;
+                session.user.image = token.picture;
             }
             return session;
         },
         async signIn({ user, account, profile }:any) {
-            // Save user to Supabase when they sign in
+            // Save user to backend database
             try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .upsert({
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+                
+                const response = await fetch(`${apiUrl}/api/auth/save-user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
                         id: user.id,
                         email: user.email,
                         name: user.name,
-                        avatar_url: user.image,
-                        updated_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'email'
-                    });
+                        picture: user.image,
+                    }),
+                });
 
-                if (error) {
-                    console.error('Error saving user to Supabase:', error);
+                if (!response.ok) {
+                    console.error('Failed to save user to backend');
                 }
                 return true;
             } catch (error) {
                 console.error('Error in signIn callback:', error);
-                return true; // Still allow sign in even if Supabase fails
+                return true; // Still allow sign in even if backend fails
             }
         },
     },
 
-    secret: process.env.NEXTAUTH_SECRET
+    secret: process.env.NEXTAUTH_SECRET,
+    
+    pages: {
+        signIn: '/login',
+        error: '/auth/error',
+    }
 
 }
 

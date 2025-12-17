@@ -3,6 +3,7 @@ API Routes
 """
 from fastapi import APIRouter
 from routes.auth import router as auth_router
+from routes.google_oauth import router as google_oauth_router  # Direct Google OAuth
 from routes.chat import router as chat_router
 from routes.users import router as users_router
 from routes.integrations import router as integrations_router
@@ -17,6 +18,7 @@ api_router = APIRouter()
 
 # Include sub-routers
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
+api_router.include_router(google_oauth_router, prefix="/auth", tags=["auth"])  # Direct Google OAuth (no Supabase)
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(users_router, prefix="/users", tags=["users"])
 api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])

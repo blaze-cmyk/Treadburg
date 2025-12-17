@@ -1,73 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8080/api";
-
-/**
- * This route handles email confirmation callbacks from Supabase Auth
- * (e.g., email verification, password reset confirmations)
- * 
- *
- */
+// This route handles the redirect from backend after successful Google OAuth
+// Backend redirects here with token parameter
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const type = requestUrl.searchParams.get('type') // 'signup', 'recovery', etc.
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const token = searchParams.get("token");
+    const newUser = searchParams.get("new_user");
+    const error = searchParams.get("error");
 
-  const origin = request.nextUrl.origin;
+    // Get the correct origin for redirects
+    const origin = request.headers.get('origin') || request.nextUrl.origin;
 
-  if (code) {
-    try {
-      // Exchange the code for a session via backend (NOT direct Supabase access)
-      const response = await fetch(`${BACKEND_URL}/auth/email/callback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code, type }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        console.error('Error exchanging code for session:', data)
-        return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
-      }
-
-      // Set auth tokens in httpOnly cookies
-      const redirectUrl = type === 'recovery' 
-        ? `${origin}/reset-password?verified=true`
-        : `${origin}/?verified=true`;
-      
-      const redirectResponse = NextResponse.redirect(redirectUrl);
-
-      if (data.access_token) {
-        redirectResponse.cookies.set("access_token", data.access_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-          path: "/",
-        });
-
-        if (data.refresh_token) {
-          redirectResponse.cookies.set("refresh_token", data.refresh_token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 60 * 60 * 24 * 30, // 30 days
-            path: "/",
-          });
-        }
-      }
-
-      return redirectResponse;
-    } catch (err) {
-      console.error('Unexpected error during auth callback:', err)
-      return NextResponse.redirect(`${origin}/login?error=unexpected`)
+    // Handle errors
+    if (error) {
+      console.error("OAuth callback error:", error);
+      return NextResponse.redirect(new URL(`/login?error=${error}`, origin));
     }
-  }
 
-  // No code provided
-  return NextResponse.redirect(`${origin}/login?error=no_code`)
+    if (!token) {
+      console.error("No token received from backend");
+      return NextResponse.redirect(new URL("/login?error=no_token", origin));
+    }
+
+    // Create redirect response
+    const redirectUrl = newUser === "true" ? "/?welcome=true" : "/";
+    const redirectResponse = NextResponse.redirect(new URL(redirectUrl, origin));
+
+    // Store token in httpOnly cookie
+    redirectResponse.cookies.set("auth_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    });
+
+    console.log("Successfully authenticated, redirecting to:", redirectUrl);
+    return redirectResponse;
+  } catch (error) {
+    console.error("Callback handler error:", error);
+    const origin = request.headers.get('origin') || request.nextUrl.origin;
+    return NextResponse.redirect(new URL("/login?error=callback_failed", origin));
+  }
 }
