@@ -65,52 +65,122 @@ def create_jwt_token(user_data: dict) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def get_or_create_user(google_user_data: dict):
-    """Get existing user or create new one with 100 credits"""
-    from database import SessionLocal
-    from models.user import User
+    """
+    Get existing user or create new one with Supabase Auth + profile with 100 credits
+    IMPORTANT: Users MUST be registered in Supabase Auth for verification
+    """
+    from services.supabase_service import get_supabase_client
     
-    db = SessionLocal()
     try:
-        # Check if user exists
-        user = db.query(User).filter(User.email == google_user_data["email"]).first()
+        supabase = get_supabase_client()
         
-        if user:
-            # Update last login
-            user.updated_at = datetime.utcnow()
-            db.commit()
-            log.info(f"Existing user logged in: {user.email}")
+        # First, try to get or create user in Supabase Auth
+        # Check if user exists in auth.users
+        try:
+            # Try to get existing auth user by email
+            auth_users = supabase.auth.admin.list_users()
+            existing_auth_user = None
+            
+            if hasattr(auth_users, 'users'):
+                for user in auth_users.users:
+                    if user.email == google_user_data["email"]:
+                        existing_auth_user = user
+                        break
+        except Exception as auth_error:
+            log.warning(f"Could not check existing auth users: {auth_error}")
+            existing_auth_user = None
+        
+        # If user doesn't exist in Supabase Auth, create them
+        auth_user_id = None
+        if not existing_auth_user:
+            try:
+                # Create user in Supabase Auth (for verification)
+                auth_response = supabase.auth.admin.create_user({
+                    "email": google_user_data["email"],
+                    "email_confirm": True,  # Auto-confirm since Google verified
+                    "user_metadata": {
+                        "full_name": google_user_data.get("name"),
+                        "avatar_url": google_user_data.get("picture"),
+                        "provider": "google"
+                    }
+                })
+                auth_user_id = auth_response.user.id if hasattr(auth_response, 'user') else None
+                log.info(f"Created Supabase Auth user: {google_user_data['email']}")
+            except Exception as auth_create_error:
+                log.error(f"Failed to create Supabase Auth user: {auth_create_error}")
+                # Continue anyway - we'll use profile table
+        else:
+            auth_user_id = existing_auth_user.id
+            log.info(f"Found existing Supabase Auth user: {google_user_data['email']}")
+        
+        # Now handle the profiles table
+        # Check if user exists in profiles table
+        existing_profile = supabase.table('profiles').select('*').eq(
+            'email', google_user_data["email"]
+        ).execute()
+        
+        if existing_profile.data and len(existing_profile.data) > 0:
+            # Update existing profile
+            profile = existing_profile.data[0]
+            
+            update_data = {
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            
+            # Update auth_user_id if we have it and it's not set
+            if auth_user_id and not profile.get('auth_user_id'):
+                update_data['auth_user_id'] = auth_user_id
+            
+            supabase.table('profiles').update(update_data).eq(
+                'email', google_user_data["email"]
+            ).execute()
+            
+            log.info(f"Existing user logged in: {profile['email']}")
             return {
-                "id": str(user.id),
-                "email": user.email,
-                "name": user.full_name or user.username,
-                "credits": user.credits,
+                "id": str(profile.get('id', profile.get('auth_user_id', auth_user_id))),
+                "email": profile['email'],
+                "name": profile.get('full_name', google_user_data.get("name")),
+                "credits": profile.get('credits_balance', 0),
                 "is_new": False
             }
         else:
-            # Create new user with 100 FREE credits
-            new_user = User(
-                email=google_user_data["email"],
-                username=google_user_data.get("name", google_user_data["email"].split("@")[0]),
-                full_name=google_user_data.get("name"),
-                credits=100,  # 100 FREE CREDITS!
-            )
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            log.info(f"New user created with 100 credits: {new_user.email}")
-            return {
-                "id": str(new_user.id),
-                "email": new_user.email,
-                "name": new_user.full_name,
-                "credits": 100,
-                "is_new": True
+            # Create new profile with 100 FREE credits
+            new_profile_data = {
+                'email': google_user_data["email"],
+                'full_name': google_user_data.get("name"),
+                'is_verified': True,  # Google verified
+                'credits_balance': 100,  # 100 FREE CREDITS!
+                'total_credits_purchased': 0,
+                'subscription_tier': 'free',
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
             }
+            
+            # Add auth_user_id if we have it
+            if auth_user_id:
+                new_profile_data['auth_user_id'] = auth_user_id
+            
+            result = supabase.table('profiles').insert(new_profile_data).execute()
+            
+            if result.data and len(result.data) > 0:
+                new_profile = result.data[0]
+                log.info(f"✅ New user created with 100 credits: {new_profile['email']}")
+                log.info(f"✅ User registered in Supabase Auth: {auth_user_id}")
+                return {
+                    "id": str(new_profile.get('id', new_profile.get('auth_user_id', auth_user_id))),
+                    "email": new_profile['email'],
+                    "name": new_profile.get('full_name'),
+                    "credits": 100,
+                    "is_new": True
+                }
+            else:
+                raise Exception("Failed to create user profile in database")
+                
     except Exception as e:
-        db.rollback()
         log.error(f"Database error: {e}")
+        import traceback
+        log.error(traceback.format_exc())
         raise
-    finally:
-        db.close()
 
 # ============================================
 # ROUTES
