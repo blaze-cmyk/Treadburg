@@ -130,11 +130,17 @@ async def google_auth_init(request: GoogleAuthInitRequest):
         state = secrets.token_urlsafe(32)
         oauth_states[state] = {
             "created_at": datetime.utcnow(),
-            "redirect_url": request.redirect_url or f"{FRONTEND_URL}/api/auth/google/callback"
+            "redirect_url": request.redirect_url
         }
         
-        # Build Google OAuth URL
-        redirect_uri = f"{FRONTEND_URL}/api/auth/google/callback"
+        # Build Google OAuth URL - Google will redirect to BACKEND callback
+        # Get backend URL from environment or construct it
+        backend_url = os.getenv("BACKEND_URL", os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:8080"))
+        # Remove /api suffix if present
+        if backend_url.endswith("/api"):
+            backend_url = backend_url[:-4]
+        
+        redirect_uri = f"{backend_url}/api/auth/google/callback"
         google_auth_url = (
             "https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={GOOGLE_CLIENT_ID}&"
@@ -181,7 +187,12 @@ async def google_auth_callback(code: str, state: str, error: Optional[str] = Non
         
         # Exchange code for tokens
         token_url = "https://oauth2.googleapis.com/token"
-        redirect_uri = f"{FRONTEND_URL}/api/auth/google/callback"
+        
+        # Get backend URL for redirect_uri (must match what we sent to Google)
+        backend_url = os.getenv("BACKEND_URL", os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:8080"))
+        if backend_url.endswith("/api"):
+            backend_url = backend_url[:-4]
+        redirect_uri = f"{backend_url}/api/auth/google/callback"
         
         token_data = {
             "code": code,
